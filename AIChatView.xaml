@@ -1,0 +1,112 @@
+<UserControl
+    x:Class="NINA.Plugin.AIAssistant.AIChatView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:NINA.Plugin.AIAssistant"
+    xmlns:ninastyle="clr-namespace:NINA.WPF.Base.View;assembly=NINA.WPF.Base">
+    
+    <Grid Margin="5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Background="{StaticResource SecondaryBackgroundBrush}" 
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                Padding="10,8" 
+                CornerRadius="5"
+                Margin="0,0,0,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="AI Assistant" 
+                               FontSize="16" 
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               FontSize="11"
+                               Foreground="{StaticResource SecondaryBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Messages Area -->
+        <ScrollViewer Grid.Row="1" 
+                      VerticalScrollBarVisibility="Auto"
+                      Margin="0,0,0,5">
+            <ItemsControl ItemsSource="{Binding Messages}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="5" 
+                                Padding="10"
+                                CornerRadius="5"
+                                Background="{StaticResource SecondaryBackgroundBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Role}" 
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource PrimaryBrush}"/>
+                                <TextBlock Text="{Binding Content}" 
+                                           TextWrapping="Wrap"
+                                           Margin="0,5,0,0"
+                                           Foreground="{StaticResource ButtonForegroundBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Input Area -->
+        <Border Grid.Row="2"
+                Background="{StaticResource SecondaryBackgroundBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                Padding="10"
+                CornerRadius="5">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBox Grid.Row="0"
+                         Text="{Binding UserMessage, UpdateSourceTrigger=PropertyChanged}"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         MinHeight="60"
+                         Width="350"
+                         HorizontalAlignment="Left"
+                         Margin="0,0,0,8"
+                         Background="{StaticResource BackgroundBrush}"
+                         Foreground="{StaticResource ButtonForegroundBrush}"
+                         BorderBrush="{StaticResource BorderBrush}"/>
+
+                <StackPanel Grid.Row="1" 
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            Margin="3,0,0,0">
+                    <Button Content="Send"
+                            Command="{Binding SendMessageCommand}"
+                            Width="100"
+                            Height="30"
+                            Margin="0,0,5,0"
+                            IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBooleanConverter}}"/>
+                    <Button Content="Clear"
+                            Command="{Binding ClearMessagesCommand}"
+                            Width="100"
+                            Height="30"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
