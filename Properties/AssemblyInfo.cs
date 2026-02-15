@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.1.0.0")]
-[assembly: AssemblyFileVersion("2.1.0.0")]
+[assembly: AssemblyVersion("2.1.1.0")]
+[assembly: AssemblyFileVersion("2.1.1.0")]
 
 // Plugin metadata - aligned with manifest.json
 [assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.2017")]
