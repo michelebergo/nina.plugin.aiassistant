@@ -16,7 +16,7 @@ env:
   PLUGIN_NAME: "AI Assistant"
   PLUGIN_SLN_NAME: "NINA.Plugin.AIAssistant"
   PLUGIN_DLL_NAME: "NINA.Plugin.AIAssistant"
-  PLUGIN_MANIFEST_PATH: "a/AIAssistant"
+  PLUGIN_MANIFEST_PATH: "a/aiassistant/3.0.0"
 
 jobs:
   build-and-release:
