@@ -30,6 +30,9 @@ _ReSharper*/
 ## Test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
+build.log
+build_error.log
+build_output.log
 
 ## NCrunch
 _NCrunch_*
