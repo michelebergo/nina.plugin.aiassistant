@@ -24,7 +24,7 @@ namespace NINA.Plugin.AIAssistant.AI
         private MCPConfig? _mcpConfig;
         private bool _mcpEnabled;
         private const string BaseUrl = "https://api.anthropic.com/v1";
-        private const string DefaultModel = "claude-sonnet-4-5-20250929";
+        private const string DefaultModel = "claude-3-5-sonnet-20241022";
         private const int MaxToolIterations = 10; // Prevent infinite loops
 
         public AIProviderType ProviderType => AIProviderType.Anthropic;
@@ -39,6 +39,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 _config = config;
 
                 _httpClient = new HttpClient();
+                _httpClient.Timeout = TimeSpan.FromMinutes(5);
                 _httpClient.DefaultRequestHeaders.Add("x-api-key", config.ApiKey ?? throw new ArgumentException("API key is required"));
                 _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
                 _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -148,6 +149,9 @@ namespace NINA.Plugin.AIAssistant.AI
             if (!response.IsSuccessStatusCode)
             {
                 Logger.Error($"Anthropic API error: {responseContent}");
+                var aiResponse = new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                CaptureRateLimits(response.Headers, aiResponse);
+                
                 var parsedError = ParseApiError(responseContent);
                 
                 // If model not found, retry with default model
@@ -165,19 +169,25 @@ namespace NINA.Plugin.AIAssistant.AI
                     var fallbackContent = new StringContent(fallbackJson, Encoding.UTF8, "application/json");
                     var fallbackResponse = await _httpClient.PostAsync($"{BaseUrl}/messages", fallbackContent, cancellationToken);
                     var fallbackResponseContent = await fallbackResponse.Content.ReadAsStringAsync(cancellationToken);
+                    
                     if (fallbackResponse.IsSuccessStatusCode)
                     {
-                        var result = ParseResponse(fallbackResponseContent);
+                        var result = ParseResponse(fallbackResponseContent, fallbackResponse.Headers);
                         result.Content = $"⚠️ *Model '{model}' was not found. Used '{DefaultModel}' instead. Please update your model in plugin settings.*\n\n{result.Content}";
                         return result;
                     }
-                    return new AIResponse { Success = false, Error = FormatApiError(fallbackResponseContent) };
+                    else
+                    {
+                        var errorResp = new AIResponse { Success = false, Error = FormatApiError(fallbackResponseContent) };
+                        CaptureRateLimits(fallbackResponse.Headers, errorResp);
+                        return errorResp;
+                    }
                 }
                 
-                return new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                return aiResponse;
             }
 
-            return ParseResponse(responseContent);
+            return ParseResponse(responseContent, response.Headers);
         }
 
         private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
@@ -257,15 +267,20 @@ namespace NINA.Plugin.AIAssistant.AI
                         responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
                         if (!response.IsSuccessStatusCode)
                         {
-                            return new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                            var errorResp = new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                            CaptureRateLimits(response.Headers, errorResp);
+                            return errorResp;
                         }
                     }
                     else
                     {
-                        return new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                        var errorResp = new AIResponse { Success = false, Error = FormatApiError(responseContent) };
+                        CaptureRateLimits(response.Headers, errorResp);
+                        return errorResp;
                     }
                 }
 
+                var aiResponse = ParseResponse(responseContent, response.Headers);
                 var jsonResponse = JObject.Parse(responseContent);
                 var stopReason = jsonResponse["stop_reason"]?.ToString();
                 var contentBlocks = jsonResponse["content"] as JArray;
@@ -297,7 +312,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 // If no tool use, return the response
                 if (stopReason != "tool_use" || toolUseBlocks.Count == 0)
                 {
-                    var finalResponse = ParseResponse(responseContent);
+                    var finalResponse = ParseResponse(responseContent, response.Headers);
                     if (allToolResults.Count > 0)
                     {
                         finalResponse.Metadata ??= new Dictionary<string, object>();
@@ -310,9 +325,8 @@ namespace NINA.Plugin.AIAssistant.AI
                 // Add assistant message with tool use
                 messages.Add(new { role = "assistant", content = assistantContent });
 
-                // Execute tools and collect results
-                var toolResults = new List<object>();
-                foreach (var toolUse in toolUseBlocks)
+                // Execute tools and collect results concurrently
+                var toolTasks = toolUseBlocks.Select(async toolUse =>
                 {
                     var toolId = toolUse["id"]?.ToString() ?? "";
                     var toolName = toolUse["name"]?.ToString() ?? "";
@@ -320,32 +334,36 @@ namespace NINA.Plugin.AIAssistant.AI
 
                     Logger.Info($"[MCP] Executing tool: {toolName}");
                     Logger.Debug($"[MCP] Tool ID: {toolId}");
-                    Logger.Debug($"[MCP] Tool arguments: {JsonConvert.SerializeObject(toolInput)}");
+                    Logger.Debug($"[MCP] Tool arguments: {(toolInput != null ? JsonConvert.SerializeObject(toolInput) : "null")}");
                     
                     var result = await _mcpClient.InvokeToolAsync(toolName, toolInput, cancellationToken);
                     
                     Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}");
-                    if (result.Success)
-                    {
-                        Logger.Debug($"[MCP] Tool result: {result.Content?.Substring(0, Math.Min(200, result.Content?.Length ?? 0))}");
-                    }
-                    else
-                    {
-                        Logger.Error($"[MCP] Tool error: {result.Error}");
-                    }
                     
                     var resultContent = result.Success 
                         ? result.Content ?? "Tool executed successfully" 
                         : $"Error: {result.Error}";
-                    
-                    allToolResults.Add($"{toolName}: {(result.Success ? "Success" : "Failed")}");
-                    
-                    toolResults.Add(new
+
+                    return new
                     {
-                        type = "tool_result",
-                        tool_use_id = toolId,
-                        content = resultContent
-                    });
+                        ToolName = toolName,
+                        Success = result.Success,
+                        ResultObj = new
+                        {
+                            type = "tool_result",
+                            tool_use_id = toolId,
+                            content = resultContent
+                        }
+                    };
+                }).ToList();
+
+                var completedTasks = await Task.WhenAll(toolTasks);
+                var toolResults = new List<object>();
+
+                foreach (var t in completedTasks)
+                {
+                    allToolResults.Add($"{t.ToolName}: {(t.Success ? "Success" : "Failed")}");
+                    toolResults.Add(t.ResultObj);
                 }
 
                 // Add tool results as user message
@@ -359,7 +377,7 @@ namespace NINA.Plugin.AIAssistant.AI
             };
         }
 
-        private AIResponse ParseResponse(string responseContent)
+        private AIResponse ParseResponse(string responseContent, System.Net.Http.Headers.HttpResponseHeaders? headers = null)
         {
             var jsonResponse = JObject.Parse(responseContent);
             var contentBlocks = jsonResponse["content"] as JArray;
@@ -368,7 +386,7 @@ namespace NINA.Plugin.AIAssistant.AI
             var inputTokens = jsonResponse["usage"]?["input_tokens"]?.Value<int>() ?? 0;
             var outputTokens = jsonResponse["usage"]?["output_tokens"]?.Value<int>() ?? 0;
 
-            return new AIResponse
+            var response = new AIResponse
             {
                 Success = true,
                 Content = textContent,
@@ -381,6 +399,45 @@ namespace NINA.Plugin.AIAssistant.AI
                     ["output_tokens"] = outputTokens
                 }
             };
+
+            if (headers != null)
+            {
+                CaptureRateLimits(headers, response);
+            }
+
+            return response;
+        }
+
+        private void CaptureRateLimits(System.Net.Http.Headers.HttpResponseHeaders headers, AIResponse aiResponse)
+        {
+            try
+            {
+                aiResponse.Metadata ??= new Dictionary<string, object>();
+
+                // Define headers to capture
+                var limitHeaders = new Dictionary<string, string>
+                {
+                    ["anthropic-ratelimit-requests-limit"] = "requests_limit",
+                    ["anthropic-ratelimit-requests-remaining"] = "requests_remaining",
+                    ["anthropic-ratelimit-requests-reset"] = "requests_reset",
+                    ["anthropic-ratelimit-tokens-limit"] = "tokens_limit",
+                    ["anthropic-ratelimit-tokens-remaining"] = "tokens_remaining",
+                    ["anthropic-ratelimit-tokens-reset"] = "tokens_reset",
+                    ["retry-after"] = "retry_after"
+                };
+
+                foreach (var header in limitHeaders)
+                {
+                    if (headers.TryGetValues(header.Key, out var values))
+                    {
+                        aiResponse.Metadata[header.Value] = values.FirstOrDefault() ?? "";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug($"Failed to capture rate limit headers: {ex.Message}");
+            }
         }
 
         private string GetDefaultSystemPrompt()
@@ -395,10 +452,12 @@ namespace NINA.Plugin.AIAssistant.AI
 IMPORTANT: You have TOOLS that you MUST USE to interact with NINA. Do NOT just explain how to do things - USE THE TOOLS to actually do them.
 
 Available tools include:
+- nina_connect_all_equipment: Connect all equipment at once (USE THIS when asked to 'connect all' instead of calling individual connect tools)
+- nina_disconnect_all_equipment: Disconnect all equipment at once (USE THIS when asked to 'disconnect all' instead of calling individual disconnect tools)
 - nina_get_status: Get equipment status (USE THIS when asked about equipment status)
 - nina_get_version: Get NINA version
-- nina_connect_camera, nina_capture_image: Camera control
-- nina_connect_mount, nina_slew_mount, nina_park_mount: Mount control
+- nina_connect_camera, nina_disconnect_camera, nina_capture_image: Camera control
+- nina_connect_mount, nina_disconnect_mount, nina_slew_mount, nina_park_mount: Mount control
 - nina_connect_focuser, nina_move_focuser: Focuser control
 - nina_connect_filterwheel, nina_change_filter: Filter wheel control
 - nina_start_guiding, nina_stop_guiding: Guider control
@@ -408,7 +467,7 @@ When the user asks to check equipment, get status, or perform ANY action:
 2. Report the actual results from the tool
 3. Provide helpful interpretation of the data
 
-For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first.";
+For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first. If user says 'connect all', USE nina_connect_all_equipment.";
         }
 
         public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)

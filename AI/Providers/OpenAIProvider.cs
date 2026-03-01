@@ -24,6 +24,7 @@ namespace NINA.Plugin.AIAssistant.AI
         public AIProviderType ProviderType => AIProviderType.OpenAI;
         public string DisplayName => "OpenAI";
         public bool IsConfigured => _httpClient != null && _config != null;
+        public bool IsMCPEnabled => false;
 
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
@@ -32,6 +33,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 _config = config;
 
                 _httpClient = new HttpClient();
+                _httpClient.Timeout = TimeSpan.FromMinutes(5);
                 _httpClient.DefaultRequestHeaders.Authorization = 
                     new AuthenticationHeaderValue("Bearer", config.ApiKey ?? throw new ArgumentException("API key is required"));
                 _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -125,7 +127,9 @@ namespace NINA.Plugin.AIAssistant.AI
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.Error($"OpenAI API error: {responseContent}");
-                    return new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
+                    var errorResp = new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
+                    CaptureRateLimits(response.Headers, errorResp);
+                    return errorResp;
                 }
 
                 var jsonResponse = JObject.Parse(responseContent);
@@ -133,7 +137,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 var tokensUsed = jsonResponse["usage"]?["total_tokens"]?.Value<int>();
                 var modelUsed = jsonResponse["model"]?.ToString();
 
-                return new AIResponse
+                var aiResponse = new AIResponse
                 {
                     Success = true,
                     Content = messageContent,
@@ -144,11 +148,44 @@ namespace NINA.Plugin.AIAssistant.AI
                         ["provider"] = "OpenAI"
                     }
                 };
+
+                CaptureRateLimits(response.Headers, aiResponse);
+                return aiResponse;
             }
             catch (Exception ex)
             {
                 Logger.Error($"OpenAI request failed: {ex.Message}");
                 return new AIResponse { Success = false, Error = ex.Message };
+            }
+        }
+
+        private void CaptureRateLimits(System.Net.Http.Headers.HttpResponseHeaders headers, AIResponse aiResponse)
+        {
+            try
+            {
+                aiResponse.Metadata ??= new Dictionary<string, object>();
+
+                var limitHeaders = new Dictionary<string, string>
+                {
+                    ["x-ratelimit-limit-requests"] = "requests_limit",
+                    ["x-ratelimit-remaining-requests"] = "requests_remaining",
+                    ["x-ratelimit-reset-requests"] = "requests_reset",
+                    ["x-ratelimit-limit-tokens"] = "tokens_limit",
+                    ["x-ratelimit-remaining-tokens"] = "tokens_remaining",
+                    ["x-ratelimit-reset-tokens"] = "tokens_reset"
+                };
+
+                foreach (var header in limitHeaders)
+                {
+                    if (headers.TryGetValues(header.Key, out var values))
+                    {
+                        aiResponse.Metadata[header.Value] = values.FirstOrDefault() ?? "";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug($"Failed to capture OpenAI rate limit headers: {ex.Message}");
             }
         }
 

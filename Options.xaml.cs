@@ -380,9 +380,10 @@ namespace NINA.Plugin.AIAssistant
                 client.DefaultRequestHeaders.Add("x-api-key", plugin.AnthropicApiKey);
                 client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
+                var modelId = plugin.AnthropicModelId ?? "claude-sonnet-4-5-20250929";
                 var requestBody = new
                 {
-                    model = "claude-3-5-haiku-20241022",
+                    model = modelId,
                     max_tokens = 5,
                     messages = new[] { new { role = "user", content = "Say OK" } }
                 };

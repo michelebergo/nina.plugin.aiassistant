@@ -27,6 +27,7 @@ namespace NINA.Plugin.AIAssistant.AI
         public AIProviderType ProviderType => AIProviderType.GitHub;
         public string DisplayName => "GitHub Models (Free)";
         public bool IsConfigured => _client != null && _config != null;
+        public bool IsMCPEnabled => false;
 
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
@@ -34,7 +35,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 _config = config;
                 _httpClient = new HttpClient();
-                _httpClient.Timeout = TimeSpan.FromSeconds(30);
+                _httpClient.Timeout = TimeSpan.FromMinutes(5);
 
                 // GitHub Models endpoint
                 var endpoint = new Uri("https://models.inference.ai.azure.com");
@@ -89,9 +90,12 @@ namespace NINA.Plugin.AIAssistant.AI
                     Success = true,
                     Content = firstChoice,
                     ModelUsed = result.Model ?? _config.ModelId,
+                    TokensUsed = result.Usage.TotalTokens,
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
-                        ["provider"] = "GitHub"
+                        ["provider"] = "GitHub",
+                        ["input_tokens"] = result.Usage.PromptTokens,
+                        ["output_tokens"] = result.Usage.CompletionTokens
                     }
                 };
             }

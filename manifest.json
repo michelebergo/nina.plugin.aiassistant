@@ -1,18 +1,13 @@
 {
+  "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
-  "Version": {
-    "Major": 2,
-    "Minor": 1,
-    "Patch": 2,
-    "Build": 0
-  },
+  "Version": "2.2.0.0",
+  "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
   "Repository": "https://github.com/michelebergo/nina.plugin.aiassistant",
   "License": "MPL-2.0",
   "LicenseURL": "https://www.mozilla.org/en-US/MPL/2.0/",
-  "ChangelogURL": "https://github.com/michelebergo/nina.plugin.aiassistant/blob/main/CHANGELOG.md",
   "Tags": [
     "AI",
     "Assistant",
@@ -20,17 +15,52 @@
     "Automation",
     "GitHub Models"
   ],
-  "MinimumApplicationVersion": {
-    "Major": 3,
-    "Minor": 0,
-    "Patch": 0,
-    "Build": 0
+  "Description": {
+    "short": {
+      "EN": "Intelligent AI assistant that transforms NINA into a conversational imaging system for better astrophotography results"
+    },
+    "long": {
+      "EN": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\n🔭 FOR ASTROPHOTOGRAPHERS:\n• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\n• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\n• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\n• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\n• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\n🤖 5 AI PROVIDERS (Free to Advanced):\nGitHub Models (FREE), OpenAI GPT-4o/o1, Anthropic Claude Sonnet 4.5, Google Gemini 2.0, Ollama (local). Dynamic model discovery ensures you always have latest AI capabilities.\n\n🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation: 'Connect camera and mount, cool to -10°C, unpark', 'Slew to Orion Nebula, center it, start guiding', 'Take 5-minute Ha exposure, then switch to OIII'. 100+ built-in MCP tools for cameras, mounts, focusers, filter wheels, rotators, dome control, guiding, platesolving.\n\n📊 INTELLIGENT IMAGING ANALYSIS:\nHFR monitoring, star detection, background assessment, exposure evaluation, pattern recognition for tracking issues.\n\n🔧 WORKFLOW AUTOMATION:\nMulti-target planning, adaptive sequences, equipment coordination, error recovery, session management.\n\n🛠️ EXTENSIBILITY:\nConnect external Python MCP servers for astronomy calculations, weather integration, catalog queries, custom automation.\n\nTransform complex equipment control and imaging workflows into simple conversations."
+    }
   },
-  "Descriptions": {
-    "ShortDescription": "Intelligent AI assistant that transforms NINA into a conversational imaging system for better astrophotography results",
-    "LongDescription": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\n🔭 FOR ASTROPHOTOGRAPHERS:\n• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\n• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\n• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\n• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\n• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\n🤖 5 AI PROVIDERS (Free to Advanced):\nGitHub Models (FREE), OpenAI GPT-4o/o1, Anthropic Claude Sonnet 4.5, Google Gemini 2.0, Ollama (local). Dynamic model discovery ensures you always have latest AI capabilities.\n\n🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation: 'Connect camera and mount, cool to -10°C, unpark', 'Slew to Orion Nebula, center it, start guiding', 'Take 5-minute Ha exposure, then switch to OIII'. 100+ built-in MCP tools for cameras, mounts, focusers, filter wheels, rotators, dome control, guiding, platesolving.\n\n📊 INTELLIGENT IMAGING ANALYSIS:\nHFR monitoring, star detection, background assessment, exposure evaluation, pattern recognition for tracking issues.\n\n🔧 WORKFLOW AUTOMATION:\nMulti-target planning, adaptive sequences, equipment coordination, error recovery, session management.\n\n🛠️ EXTENSIBILITY:\nConnect external Python MCP servers for astronomy calculations, weather integration, catalog queries, custom automation.\n\nTransform complex equipment control and imaging workflows into simple conversations.",
-    "FeaturedImageURL": "https://raw.githubusercontent.com/michelebergo/nina.plugin.aiassistant/main/icon.png",
-    "ScreenshotURL": "",
-    "AltScreenshotURL": ""
+  "ChangeLog": [
+    {
+      "Version": "2.2.0.0",
+      "Date": "2026-03-01",
+      "Changes": [
+        "Universal Quota Monitoring: Real-time tracking of API limits and token usage for all providers",
+        "Detailed Token Usage info in the chat header (input/output breakdown)",
+        "Proactive Rate Limit Info: Error messages now include reset times",
+        "Fixed Google Gemini MCP name collisions with built-in NINA tools",
+        "Fixed MCP status caching when switching between providers",
+        "Fixed Anthropic connection test model selection",
+        "Updated default Anthropic model to Claude 3.5 Sonnet 20241022",
+        "Improved UI header layout and stability fixes"
+      ]
+    },
+    {
+      "Version": "2.1.2.0",
+      "Date": "2026-02-15",
+      "Changes": [
+        "Restructured manifest.json to match official requirements",
+        "Fixed CI/CD manifest paths"
+      ]
+    },
+    {
+      "Version": "2.1.0.0",
+      "Date": "2025-07-10",
+      "Changes": [
+        "Google Gemini MCP Support",
+        "Anti-hallucination System Prompts",
+        "Dynamic Model Discovery",
+        "OpenAI Reasoning Model Support"
+      ]
+    }
+  ],
+  "Installer": {
+    "Type": "DLL",
+    "DLLs": [
+      "NINA.Plugin.AIAssistant.dll"
+    ]
   }
 }

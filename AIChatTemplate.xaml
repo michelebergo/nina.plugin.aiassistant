@@ -5,6 +5,8 @@
     xmlns:local="clr-namespace:NINA.Plugin.AIAssistant"
     xmlns:ninastyle="clr-namespace:NINA.WPF.Base.View;assembly=NINA.WPF.Base">
 
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
     <!-- AI Chat Dockable Panel -->
     <DataTemplate DataType="{x:Type local:AIChatVM}">
         <Grid Margin="5">
@@ -29,14 +31,48 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="AI Assistant" 
-                                   FontSize="14" 
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource PrimaryBrush}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="AI Assistant" 
+                                       FontSize="14" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource PrimaryBrush}"
+                                       Margin="0,0,10,0"/>
+                            <!-- Model info -->
+                            <Border Background="{StaticResource TertiaryBackgroundBrush}"
+                                    CornerRadius="3" 
+                                    Padding="4,1" Margin="0,0,5,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CurrentModel}" 
+                                           FontSize="10" 
+                                           Foreground="{StaticResource PrimaryBrush}"/>
+                            </Border>
+                            <!-- MCP Tag -->
+                            <Border Background="Goldenrod"
+                                    CornerRadius="3"
+                                    Padding="4,1" Margin="0,0,5,0"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding IsMcpSupportedModel, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="MCP" 
+                                           FontSize="10" FontWeight="Bold" Foreground="White" />
+                            </Border>
+                            <TextBlock Text="{Binding TokenUsage}" 
+                                       FontSize="10" 
+                                       Foreground="{StaticResource SecondaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,5,0"/>
+                            <!-- Quota usage -->
+                            <TextBlock Text="{Binding QuotaUsage}" 
+                                       FontSize="10" 
+                                       Foreground="Goldenrod"
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding HasQuotaUsage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                        
                         <TextBlock Text="{Binding StatusMessage}" 
                                    FontSize="11" 
                                    Opacity="0.7"
-                                   Foreground="{StaticResource PrimaryBrush}"/>
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Margin="0,2,0,0"/>
                     </StackPanel>
                     <Button Grid.Column="1" 
                             Content="⏹ Stop" 
@@ -98,9 +134,14 @@
                                         </Style>
                                     </Border.Style>
                                     <StackPanel MaxWidth="500">
-                                        <TextBlock Text="{Binding Content}" 
-                                                   TextWrapping="Wrap" 
-                                                   Foreground="{StaticResource PrimaryBrush}"/>
+                                        <TextBox Text="{Binding Content, Mode=OneWay}" 
+                                                 TextWrapping="Wrap" 
+                                                 IsReadOnly="True"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Foreground="{StaticResource PrimaryBrush}"
+                                                 Padding="0"
+                                                 Margin="0"/>
                                         <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}" 
                                                    FontSize="10" 
                                                    Opacity="0.5"

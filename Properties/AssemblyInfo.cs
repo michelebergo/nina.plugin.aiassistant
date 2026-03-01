@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("Multi-provider AI assistant with MCP equipment control for intelligent astrophotography automation")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Michele Bergo")]
-[assembly: AssemblyProduct("NINA AI Assistant Plugin")]
+[assembly: AssemblyProduct("NINA.Plugins")]
 [assembly: AssemblyCopyright("Copyright © 2026 Michele Bergo")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -18,11 +18,13 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.1.2.0")]
-[assembly: AssemblyFileVersion("2.1.2.0")]
+[assembly: AssemblyVersion("2.2.0.0")]
+[assembly: AssemblyFileVersion("2.2.0.0")]
 
-// Plugin metadata - aligned with manifest.json
-[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.2017")]
+// Plugin metadata - aligned with NINA manifest standards
+[assembly: AssemblyMetadata("Identifier", "AI Assistant")]
+[assembly: AssemblyMetadata("Author", "Michele Bergo")]
+[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.0")]
 [assembly: AssemblyMetadata("License", "MPL-2.0")]
 [assembly: AssemblyMetadata("LicenseURL", "https://www.mozilla.org/en-US/MPL/2.0/")]
 [assembly: AssemblyMetadata("Repository", "https://github.com/michelebergo/nina.plugin.aiassistant")]
@@ -30,8 +32,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("FeaturedImageURL", "https://raw.githubusercontent.com/michelebergo/nina.plugin.aiassistant/main/icon.png")]
 [assembly: AssemblyMetadata("ScreenshotURL", "")]
 [assembly: AssemblyMetadata("AltScreenshotURL", "")]
-[assembly: AssemblyMetadata("ChangelogURL", "https://github.com/michelebergo/nina.plugin.aiassistant/blob/main/CHANGELOG.md")]
-[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation")]
+[assembly: AssemblyMetadata("ChangelogURL", "https://github.com/michelebergo/nina.plugin.aiassistant/releases")]
+[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,GitHub Models")]
 
 // Short description (required by NINA plugin manager)
 [assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control, dynamic model discovery, image analysis, and extensible tool framework for intelligent astrophotography automation")]

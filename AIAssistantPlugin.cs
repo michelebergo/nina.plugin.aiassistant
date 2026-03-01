@@ -175,7 +175,24 @@ namespace NINA.Plugin.AIAssistant
                 SelectedProviderInternal = value;
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                RaisePropertyChanged(nameof(SelectedModelId));
                 _ = InitializeAIProviderAsync();
+            }
+        }
+
+        public string? SelectedModelId
+        {
+            get
+            {
+                return SelectedProvider switch
+                {
+                    AIProviderType.GitHub => GitHubModelId,
+                    AIProviderType.OpenAI => OpenAIModelId,
+                    AIProviderType.Anthropic => AnthropicModelId,
+                    AIProviderType.Google => GoogleModelId,
+                    AIProviderType.Ollama => OllamaModelId,
+                    _ => "Unknown Model"
+                };
             }
         }
 

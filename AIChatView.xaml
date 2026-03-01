@@ -26,10 +26,36 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="AI Assistant" 
-                               FontSize="16" 
-                               FontWeight="Bold"
-                               Foreground="{StaticResource PrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="AI Assistant" 
+                                   FontSize="16" 
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Margin="0,0,10,0"/>
+                        <!-- Model info -->
+                        <Border Background="{StaticResource TertiaryBackgroundBrush}"
+                                CornerRadius="3" 
+                                Padding="4,1" Margin="0,0,5,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CurrentModel}" 
+                                       FontSize="10" 
+                                       Foreground="{StaticResource PrimaryBrush}"/>
+                        </Border>
+                        <!-- MCP Tag -->
+                        <Border Background="Goldenrod"
+                                CornerRadius="3"
+                                Padding="4,1" Margin="0,0,5,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding IsMcpSupportedModel, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="MCP" 
+                                       FontSize="10" FontWeight="Bold" Foreground="White" />
+                        </Border>
+                        <!-- Token usage -->
+                        <TextBlock Text="{Binding TokenUsage}" 
+                                   FontSize="10" 
+                                   Foreground="{StaticResource SecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding StatusMessage}" 
                                FontSize="11"
                                Foreground="{StaticResource SecondaryBrush}"
@@ -55,10 +81,14 @@
                                 <TextBlock Text="{Binding Role}" 
                                            FontWeight="Bold"
                                            Foreground="{StaticResource PrimaryBrush}"/>
-                                <TextBlock Text="{Binding Content}" 
-                                           TextWrapping="Wrap"
-                                           Margin="0,5,0,0"
-                                           Foreground="{StaticResource ButtonForegroundBrush}"/>
+                                <TextBox Text="{Binding Content, Mode=OneWay}" 
+                                         TextWrapping="Wrap"
+                                         IsReadOnly="True"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Margin="0,5,0,0"
+                                         Foreground="{StaticResource ButtonForegroundBrush}"
+                                         Padding="0"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

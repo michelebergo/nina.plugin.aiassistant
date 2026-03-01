@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0.0] - 2026-03-01
+
+### Added
+- 📊 **Universal Quota Monitoring** - Added real-time tracking of API limits and token usage for all providers (Anthropic, OpenAI, Google, GitHub, and Ollama)
+- 📝 **Detailed Token Usage** - New breakdown showing input vs output tokens in the chat header (e.g., `120 in | 45 out`)
+- ⏱️ **Proactive Rate Limit Info** - When rate limited, the error message now includes the exact time until your quota resets
+- ✨ **Enhanced Header UI** - New `Goldenrod` styled quota indicator and improved model information layout
+
+### Fixed
+- 🐛 **Google Gemini MCP Collision** - Fixed "Duplicate function declaration" errors by detecting and skipping tool name collisions with NINA's built-in tools
+- 🐛 **MCP Status Caching** - Fixed bug where switching between Gemini and Anthropic would fail to initialize MCP due to stale initialization flags
+- 🐛 **Anthropic Connection Testing** - Fixed logic to properly use the selected model during API connection tests
+- 🐛 **Claude 3.5 Sonnet Naming** - Updated default Anthropic model to the latest `claude-3-5-sonnet-20241022`
+- 🛠️ **XAML Stability** - Resolved build issues related to dictionary extensions and missing visibility converters
+
+---
+
 ## [2.1.2.0] - 2026-02-15
 
 ### Fixed

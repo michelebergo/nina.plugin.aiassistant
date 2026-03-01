@@ -25,6 +25,11 @@ namespace NINA.Plugin.AIAssistant.AI
         bool IsConfigured { get; }
 
         /// <summary>
+        /// Whether MCP (Model Context Protocol) is enabled and connected for this provider
+        /// </summary>
+        bool IsMCPEnabled { get; }
+
+        /// <summary>
         /// Initialize the provider with configuration
         /// </summary>
         Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default);

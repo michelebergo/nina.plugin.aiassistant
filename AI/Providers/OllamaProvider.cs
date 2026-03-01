@@ -22,6 +22,7 @@ namespace NINA.Plugin.AIAssistant.AI
         public AIProviderType ProviderType => AIProviderType.Ollama;
         public string DisplayName => "Ollama (Local/Free)";
         public bool IsConfigured => _httpClient != null && _config != null;
+        public bool IsMCPEnabled => false;
 
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
@@ -88,16 +89,21 @@ namespace NINA.Plugin.AIAssistant.AI
                 var messageContent = jsonResponse["message"]?["content"]?.ToString();
                 var evalCount = jsonResponse["eval_count"]?.Value<int>();
 
+                var promptTokens = jsonResponse["prompt_eval_count"]?.Value<int>() ?? 0;
+                var evalTokens = jsonResponse["eval_count"]?.Value<int>() ?? 0;
+
                 return new AIResponse
                 {
                     Success = true,
                     Content = messageContent,
                     ModelUsed = modelId,
-                    TokensUsed = evalCount,
+                    TokensUsed = promptTokens + evalTokens,
                     Metadata = new Dictionary<string, object>
                     {
                         ["provider"] = "Ollama",
-                        ["local"] = true
+                        ["local"] = true,
+                        ["input_tokens"] = promptTokens,
+                        ["output_tokens"] = evalTokens
                     }
                 };
             }

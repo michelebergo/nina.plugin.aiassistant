@@ -67,6 +67,9 @@ namespace NINA.Plugin.AIAssistant
 
             // Get AIService from plugin instance
             _aiService = AIAssistantPlugin.Instance?.GetAIService();
+            
+            // Re-initialize the current model from the configuration
+            _currentModel = AIAssistantPlugin.Instance?.SelectedModelId ?? "Default Model";
 
             // Initialize commands
             SendMessageCommand = new MvvmAsyncRelayCommand(SendMessageAsync);
@@ -95,8 +98,33 @@ namespace NINA.Plugin.AIAssistant
                 Content = welcomeMsg,
                 Timestamp = DateTime.Now
             });
+
+            // Subscribe to plugin settings changes to reset MCP initialization if provider/settings change
+            if (AIAssistantPlugin.Instance != null)
+            {
+                AIAssistantPlugin.Instance.PropertyChanged += Plugin_PropertyChanged;
+            }
         }
 
+        private void Plugin_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(AIAssistantPlugin.SelectedProvider) || 
+                e.PropertyName == nameof(AIAssistantPlugin.MCPEnabled) ||
+                e.PropertyName == "SelectedProviderInternal")
+            {
+                Logger.Info($"AIChatVM: Settings changed ({e.PropertyName}), resetting MCP initialization state");
+                _mcpInitialized = false;
+                
+                // Update CurrentModel when provider or its model changes
+                CurrentModel = AIAssistantPlugin.Instance?.SelectedModelId ?? "Default Model";
+                
+                // Update status message to prompt for re-init matching the new provider
+                if (AIAssistantPlugin.Instance?.MCPEnabled == true) {
+                    StatusMessage = "Ready - MCP will re-initialize on next message";
+                }
+            }
+        }
+        
         public override bool IsTool => true;
         
         public void Hide(object? o)
@@ -123,6 +151,42 @@ namespace NINA.Plugin.AIAssistant
         {
             get => _statusMessage;
             set => SetProperty(ref _statusMessage, value);
+        }
+
+        private string _currentModel;
+        public string CurrentModel
+        {
+            get => _currentModel;
+            set => SetProperty(ref _currentModel, value);
+        }
+
+        private string _tokenUsage = "";
+        public string TokenUsage
+        {
+            get => _tokenUsage;
+            set => SetProperty(ref _tokenUsage, value);
+        }
+
+        private string _quotaUsage = "";
+        public string QuotaUsage
+        {
+            get => _quotaUsage;
+            set 
+            {
+                if (SetProperty(ref _quotaUsage, value))
+                {
+                    OnPropertyChanged(nameof(HasQuotaUsage));
+                }
+            }
+        }
+
+        public bool HasQuotaUsage => !string.IsNullOrEmpty(QuotaUsage);
+
+        private bool _isMcpSupportedModel = false;
+        public bool IsMcpSupportedModel
+        {
+            get => _isMcpSupportedModel;
+            set => SetProperty(ref _isMcpSupportedModel, value);
         }
 
         public ObservableCollection<ChatMessage> Messages { get; } = new();
@@ -324,6 +388,7 @@ namespace NINA.Plugin.AIAssistant
             _responseCancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = _responseCancellationTokenSource.Token;
 
+            AIResponse? response = null;
             try
             {
                 // Initialize MCP if needed (for Anthropic with MCP enabled)
@@ -361,12 +426,69 @@ Your expertise includes:
 Keep responses concise but accurate. Use proper astrophotography terminology.";
                 }
 
-                var response = await _aiService.QueryAsync(userMsg, systemPrompt, cancellationToken);
+                var request = new AIRequest
+                {
+                    Prompt = userMsg,
+                    SystemPrompt = systemPrompt,
+                    MaxTokens = 1024,
+                    Temperature = 0.7
+                };
+
+                try
+                {
+                    response = await _aiService.SendRequestAsync(request, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Catch internal provider errors that don't return a Success=false AIResponse
+                    Logger.Error($"AI Service direct failure: {ex.Message}");
+                    throw; // Re-throw to be handled by the main catch block
+                }
+
+                if (response == null || !response.Success)
+                {
+                    throw new Exception(response?.Error ?? "Unknown error");
+                }
+
+                // Update UI with model and token information
+                CurrentModel = response.ModelUsed ?? _aiService.ActiveProviderName ?? "Unknown Model";
+                
+                // Format detailed token usage if available
+                if (response.Metadata != null && response.Metadata.ContainsKey("input_tokens"))
+                {
+                    var inTok = response.Metadata["input_tokens"];
+                    var outTok = response.Metadata["output_tokens"];
+                    TokenUsage = $"{inTok} in | {outTok} out ({response.TokensUsed ?? 0} total)";
+                }
+                else
+                {
+                    TokenUsage = response.TokensUsed.HasValue ? $"{response.TokensUsed} tokens" : "Tokens: N/A";
+                }
+                
+                IsMcpSupportedModel = isMCPProvider;
+
+                // Extract and format quota usage if available
+                if (response?.Metadata != null && response.Metadata.ContainsKey("requests_remaining"))
+                {
+                    var reqRem = response.Metadata.ContainsKey("requests_remaining") ? response.Metadata["requests_remaining"]?.ToString() : null;
+                    var reqLim = response.Metadata.ContainsKey("requests_limit") ? response.Metadata["requests_limit"]?.ToString() : null;
+                    var tokRem = response.Metadata.ContainsKey("tokens_remaining") ? response.Metadata["tokens_remaining"]?.ToString() : null;
+                    var tokLim = response.Metadata.ContainsKey("tokens_limit") ? response.Metadata["tokens_limit"]?.ToString() : null;
+                    
+                    if (!string.IsNullOrEmpty(reqRem) && !string.IsNullOrEmpty(tokRem))
+                    {
+                        QuotaUsage = $"Quota: {reqRem}/{reqLim} req | {tokRem}/{tokLim} tokens";
+                    }
+                }
+                else
+                {
+                    QuotaUsage = "";
+                }
 
                 Messages.Add(new ChatMessage
                 {
                     Role = "assistant",
-                    Content = response,
+                    Content = response.Content ?? "No response received",
                     Timestamp = DateTime.Now
                 });
 
@@ -399,12 +521,31 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                 else if (errorMsg.Contains("Rate limit") || errorMsg.Contains("rate_limit"))
                 {
                     statusMsg = "⚠️ Rate limited - try again shortly";
+                    
+                    // Specific handling for Anthropic rate limit resetting
+                    if (ex.Data.Contains("requests_reset")) {
+                         errorMsg += $"\nRequests reset in: {ex.Data["requests_reset"]}";
+                    }
+                    if (ex.Data.Contains("tokens_reset")) {
+                         errorMsg += $"\nTokens reset in: {ex.Data["tokens_reset"]}";
+                    }
+                    if (ex.Data.Contains("retry_after")) {
+                         errorMsg += $"\nRetry after: {ex.Data["retry_after"]}s";
+                    }
                 }
                 else
                 {
                     statusMsg = "⚠️ Error - see message for details";
                 }
                 
+                // Try to get quota info even on error
+                if (_aiService?.GetActiveProvider() is AnthropicProvider anthropic && response?.Metadata != null)
+                {
+                     var reqRem = response.Metadata.ContainsKey("requests_remaining") ? response.Metadata["requests_remaining"]?.ToString() : null;
+                     var tokRem = response.Metadata.ContainsKey("tokens_remaining") ? response.Metadata["tokens_remaining"]?.ToString() : null;
+                     if (!string.IsNullOrEmpty(reqRem)) QuotaUsage = $"Quota: {reqRem} req | {tokRem} tokens";
+                }
+
                 Messages.Add(new ChatMessage
                 {
                     Role = "assistant",

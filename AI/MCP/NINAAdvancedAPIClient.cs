@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -79,6 +80,18 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     Description = "Get the version of NINA and the Advanced API",
                     InputSchema = new MCPToolInputSchema()
                 },
+                new MCPTool
+                {
+                    Name = "nina_connect_all_equipment",
+                    Description = "Connect to all configured equipment in NINA at once (Camera, Mount, Focuser, Filter Wheel, Guider, Dome, Rotator, Flat Panel, Switch, Weather, Safety Monitor)",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_disconnect_all_equipment",
+                    Description = "Disconnect from all configured equipment in NINA at once",
+                    InputSchema = new MCPToolInputSchema()
+                },
 
                 // Camera Operations
                 new MCPTool
@@ -118,6 +131,64 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                             ["download"] = new MCPToolParameter { Type = "boolean", Description = "Whether to download the image data" },
                             ["solve"] = new MCPToolParameter { Type = "boolean", Description = "Whether to plate solve the image" }
                         }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_rescan_camera",
+                    Description = "Rescan for camera devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_camera_readout",
+                    Description = "Set the camera readout mode",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["mode"] = new MCPToolParameter { Type = "integer", Description = "Readout mode index" }
+                        },
+                        Required = new List<string> { "mode" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_camera_readout_image",
+                    Description = "Set the camera readout mode for imaging",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["mode"] = new MCPToolParameter { Type = "integer", Description = "Readout mode index" }
+                        },
+                        Required = new List<string> { "mode" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_camera_readout_snapshot",
+                    Description = "Set the camera readout mode for snapshots",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["mode"] = new MCPToolParameter { Type = "integer", Description = "Readout mode index" }
+                        },
+                        Required = new List<string> { "mode" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_camera_usb_limit",
+                    Description = "Set the camera USB limit",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["limit"] = new MCPToolParameter { Type = "integer", Description = "USB Limit value" }
+                        },
+                        Required = new List<string> { "limit" }
                     }
                 },
                 new MCPTool
@@ -180,6 +251,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_rescan_mount",
+                    Description = "Rescan for mount devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_slew_mount",
                     Description = "Slew the mount to specified coordinates",
                     InputSchema = new MCPToolInputSchema
@@ -203,6 +280,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_unpark_mount",
                     Description = "Unpark the mount",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_mount_park_position",
+                    Description = "Set the current mount position as the park position",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -263,6 +346,18 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_list_focuser_devices",
+                    Description = "List all available focuser devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_rescan_focuser",
+                    Description = "Rescan for focuser devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_move_focuser",
                     Description = "Move the focuser to a specific position",
                     InputSchema = new MCPToolInputSchema
@@ -274,6 +369,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                         },
                         Required = new List<string> { "position" }
                     }
+                },
+                new MCPTool
+                {
+                    Name = "nina_stop_focuser_move",
+                    Description = "Stop the current focuser movement",
+                    InputSchema = new MCPToolInputSchema()
                 },
 
                 // Filter Wheel Operations
@@ -303,6 +404,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_rescan_filterwheel",
+                    Description = "Rescan for filter wheel devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_change_filter",
                     Description = "Change to a specific filter",
                     InputSchema = new MCPToolInputSchema
@@ -312,6 +419,49 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                             ["filter_id"] = new MCPToolParameter { Type = "integer", Description = "ID of the filter to change to" }
                         },
                         Required = new List<string> { "filter_id" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_add_filter",
+                    Description = "Add a new filter to the filter wheel position",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Position index" },
+                            ["name"] = new MCPToolParameter { Type = "string", Description = "Name of the filter" },
+                            ["autoFocusExposure"] = new MCPToolParameter { Type = "number", Description = "Autofocus exposure time" },
+                            ["flatWizardExposure"] = new MCPToolParameter { Type = "number", Description = "Flat wizard exposure time" },
+                            ["focusOffset"] = new MCPToolParameter { Type = "integer", Description = "Focus offset" }
+                        },
+                        Required = new List<string> { "position", "name" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_remove_filter",
+                    Description = "Remove a filter by its position",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Position index to remove" }
+                        },
+                        Required = new List<string> { "position" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_filter_info",
+                    Description = "Get details of a filter by its position",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Filter position index" }
+                        },
+                        Required = new List<string> { "position" }
                     }
                 },
 
@@ -342,6 +492,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_rescan_guider",
+                    Description = "Rescan for guider devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_start_guiding",
                     Description = "Start guiding with optional calibration",
                     InputSchema = new MCPToolInputSchema
@@ -362,6 +518,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_calibrate_guider",
                     Description = "Calibrate the guider without starting guiding",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_clear_guider_calibration",
+                    Description = "Clear the guider calibration",
                     InputSchema = new MCPToolInputSchema()
                 },
 
@@ -388,6 +550,50 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_get_dome_info",
                     Description = "Get information about the connected dome",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_rescan_dome",
+                    Description = "Rescan for dome devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_stop_dome",
+                    Description = "Stop dome movement",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_dome_follow",
+                    Description = "Enable or disable dome following",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["follow"] = new MCPToolParameter { Type = "boolean", Description = "True to follow" }
+                        },
+                        Required = new List<string> { "follow" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_sync_dome",
+                    Description = "Sync dome position with azimuth",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["azimuth"] = new MCPToolParameter { Type = "number", Description = "Azimuth in degrees" }
+                        },
+                        Required = new List<string> { "azimuth" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_dome_park_position",
+                    Description = "Set the current dome position as the park position",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -507,6 +713,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_rescan_rotator",
+                    Description = "Rescan for rotator devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_get_rotator_info",
                     Description = "Get information about the connected rotator",
                     InputSchema = new MCPToolInputSchema()
@@ -523,6 +735,33 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                             ["relative"] = new MCPToolParameter { Type = "boolean", Description = "Whether position is relative to current" }
                         },
                         Required = new List<string> { "position" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_move_rotator_mechanical",
+                    Description = "Move the rotator safely avoiding wrap-around",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["position"] = new MCPToolParameter { Type = "number", Description = "Target mechanical position" }
+                        },
+                        Required = new List<string> { "position" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_rotator_mechanical_range",
+                    Description = "Set mechanical range constraint for the rotator",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["min"] = new MCPToolParameter { Type = "number", Description = "Minimum angle" },
+                            ["max"] = new MCPToolParameter { Type = "number", Description = "Maximum angle" }
+                        },
+                        Required = new List<string> { "min", "max" }
                     }
                 },
                 new MCPTool
@@ -581,6 +820,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_list_flatpanel_devices",
                     Description = "List available flat panel devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_rescan_flatpanel",
+                    Description = "Rescan for flat panel devices",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -657,6 +902,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_rescan_switch",
+                    Description = "Rescan for switch devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_get_switch_channels",
                     Description = "Get all writable and read-only channels from the connected switch",
                     InputSchema = new MCPToolInputSchema()
@@ -707,6 +958,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     Description = "List all available weather station sources",
                     InputSchema = new MCPToolInputSchema()
                 },
+                new MCPTool
+                {
+                    Name = "nina_rescan_weather",
+                    Description = "Rescan for weather sources",
+                    InputSchema = new MCPToolInputSchema()
+                },
 
                 // Safety Monitor Operations
                 new MCPTool
@@ -737,6 +994,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_list_safetymonitor_devices",
                     Description = "List all available safety monitor devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_rescan_safetymonitor",
+                    Description = "Rescan for safety monitor devices",
                     InputSchema = new MCPToolInputSchema()
                 },
 
@@ -829,6 +1092,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_get_autofocus_status",
                     Description = "Get the status of the current autofocus routine",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_last_autofocus",
+                    Description = "Get the result of the last autofocus routine",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -980,6 +1249,112 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             try
             {
                 var baseUrl = $"http://{_config.NinaHost}:{_config.NinaPort}/v2/api";
+                if (toolName == "nina_connect_all_equipment")
+                {
+                    Logger.Info("Invoking NINA API: Connect all equipment");
+                    string[] endpoints = new[]
+                    {
+                        "equipment/camera/connect",
+                        "equipment/mount/connect",
+                        "equipment/focuser/connect",
+                        "equipment/filterwheel/connect",
+                        "equipment/guider/connect",
+                        "equipment/dome/connect",
+                        "equipment/rotator/connect",
+                        "equipment/flatdevice/connect",
+                        "equipment/switch/connect",
+                        "equipment/weather/connect",
+                        "equipment/safetymonitor/connect"
+                    };
+
+                    var tasks = endpoints.Select(async ep =>
+                    {
+                        try
+                        {
+                            var r = await _httpClient.GetAsync($"{baseUrl}/{ep}", cancellationToken);
+                            var content = await r.Content.ReadAsStringAsync(cancellationToken);
+                            return new { Endpoint = ep, Success = r.IsSuccessStatusCode, Content = content };
+                        }
+                        catch (Exception e)
+                        {
+                            return new { Endpoint = ep, Success = false, Content = e.Message };
+                        }
+                    });
+
+                    var results = await Task.WhenAll(tasks);
+                    
+                    var data = new Dictionary<string, object>();
+                    bool allSuccess = true;
+                    var sb = new StringBuilder();
+                    
+                    foreach (var res in results)
+                    {
+                        data[res.Endpoint] = new { Success = res.Success, Content = res.Content };
+                        if (!res.Success) allSuccess = false;
+                        sb.AppendLine($"[{res.Endpoint}] Success: {res.Success}");
+                    }
+
+                    return new MCPToolResult
+                    {
+                        Success = allSuccess,
+                        Content = $"Bulk connection attempt completed.\n{sb}",
+                        Data = data
+                    };
+                }
+
+                if (toolName == "nina_disconnect_all_equipment")
+                {
+                    Logger.Info("Invoking NINA API: Disconnect all equipment");
+                    string[] endpoints = new[]
+                    {
+                        "equipment/camera/disconnect",
+                        "equipment/mount/disconnect",
+                        "equipment/focuser/disconnect",
+                        "equipment/filterwheel/disconnect",
+                        "equipment/guider/disconnect",
+                        "equipment/dome/disconnect",
+                        "equipment/rotator/disconnect",
+                        "equipment/flatdevice/disconnect",
+                        "equipment/switch/disconnect",
+                        "equipment/weather/disconnect",
+                        "equipment/safetymonitor/disconnect"
+                    };
+
+                    var tasks = endpoints.Select(async ep =>
+                    {
+                        try
+                        {
+                            var r = await _httpClient.GetAsync($"{baseUrl}/{ep}", cancellationToken);
+                            var content = await r.Content.ReadAsStringAsync(cancellationToken);
+                            return new { Endpoint = ep, Success = r.IsSuccessStatusCode, Content = content };
+                        }
+                        catch (Exception e)
+                        {
+                            return new { Endpoint = ep, Success = false, Content = e.Message };
+                        }
+                    });
+
+                    var results = await Task.WhenAll(tasks);
+                    
+                    var data = new Dictionary<string, object>();
+                    bool allSuccess = true;
+                    var sb = new StringBuilder();
+                    
+                    foreach (var res in results)
+                    {
+                        data[res.Endpoint] = new { Success = res.Success, Content = res.Content };
+                        if (!res.Success) allSuccess = false;
+                        sb.AppendLine($"[{res.Endpoint}] Success: {res.Success}");
+                    }
+
+                    return new MCPToolResult
+                    {
+                        Success = allSuccess,
+                        Content = $"Bulk disconnect attempt completed.\n{sb}",
+                        Data = data
+                    };
+                }
+
                 string endpoint = MapToolToEndpoint(toolName, arguments);
                 
                 if (string.IsNullOrEmpty(endpoint))
@@ -1032,6 +1407,11 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_disconnect_camera" => "equipment/camera/disconnect",
                 "nina_get_camera_info" => "equipment/camera/info",
                 "nina_list_camera_devices" => "equipment/camera/list-devices",
+                "nina_rescan_camera" => "equipment/camera/rescan",
+                "nina_set_camera_readout" => BuildEndpoint("equipment/camera/set-readout", argsDict, "mode", "mode"),
+                "nina_set_camera_readout_image" => BuildEndpoint("equipment/camera/set-readout/image", argsDict, "mode", "mode"),
+                "nina_set_camera_readout_snapshot" => BuildEndpoint("equipment/camera/set-readout/snapshot", argsDict, "mode", "mode"),
+                "nina_set_camera_usb_limit" => BuildEndpoint("equipment/camera/usb-limit", argsDict, "limit", "limit"),
                 "nina_capture_image" => BuildCaptureEndpoint(argsDict),
                 "nina_start_cooling" => BuildCoolingEndpoint(argsDict),
                 "nina_stop_cooling" => "equipment/camera/cool?cancel=true",
@@ -1043,9 +1423,11 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_disconnect_mount" => "equipment/mount/disconnect",
                 "nina_get_mount_info" => "equipment/mount/info",
                 "nina_list_mount_devices" => "equipment/mount/list-devices",
+                "nina_rescan_mount" => "equipment/mount/rescan",
                 "nina_slew_mount" => BuildSlewEndpoint(argsDict),
                 "nina_park_mount" => "equipment/mount/park",
                 "nina_unpark_mount" => "equipment/mount/unpark",
+                "nina_set_mount_park_position" => "equipment/mount/set-park-position",
                 "nina_home_mount" => "equipment/mount/home",
                 "nina_stop_slew" => "equipment/mount/stop-slew",
                 "nina_flip_mount" => "equipment/mount/flip",
@@ -1056,23 +1438,31 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_disconnect_focuser" => "equipment/focuser/disconnect",
                 "nina_get_focuser_info" => "equipment/focuser/info",
                 "nina_list_focuser_devices" => "equipment/focuser/list-devices",
+                "nina_rescan_focuser" => "equipment/focuser/rescan",
                 "nina_move_focuser" => BuildFocuserMoveEndpoint(argsDict),
+                "nina_stop_focuser_move" => "equipment/focuser/stop-move",
                 
                 // Filter Wheel
                 "nina_connect_filterwheel" => BuildEndpoint("equipment/filterwheel/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_filterwheel" => "equipment/filterwheel/disconnect",
                 "nina_get_filterwheel_info" => "equipment/filterwheel/info",
                 "nina_list_filterwheel_devices" => "equipment/filterwheel/list-devices",
+                "nina_rescan_filterwheel" => "equipment/filterwheel/rescan",
                 "nina_change_filter" => BuildEndpoint("equipment/filterwheel/change-filter", argsDict, "filter_id", "filterId"),
+                "nina_add_filter" => BuildAddFilterEndpoint(argsDict),
+                "nina_remove_filter" => BuildEndpoint("equipment/filterwheel/remove-filter", argsDict, "position", "position"),
+                "nina_get_filter_info" => BuildEndpoint("equipment/filterwheel/filter-info", argsDict, "position", "position"),
                 
                 // Guider
                 "nina_connect_guider" => BuildEndpoint("equipment/guider/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_guider" => "equipment/guider/disconnect",
                 "nina_get_guider_info" => "equipment/guider/info",
                 "nina_list_guider_devices" => "equipment/guider/list-devices",
+                "nina_rescan_guider" => "equipment/guider/rescan",
                 "nina_start_guiding" => argsDict.ContainsKey("calibrate") && Convert.ToBoolean(argsDict["calibrate"]) ? "equipment/guider/start?calibrate=true" : "equipment/guider/start",
                 "nina_stop_guiding" => "equipment/guider/stop",
                 "nina_calibrate_guider" => "equipment/guider/calibrate",
+                "nina_clear_guider_calibration" => "equipment/guider/clear-calibration",
                 "nina_get_guider_graph" => "equipment/guider/graph",
                 
                 // Dome
@@ -1080,9 +1470,14 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_disconnect_dome" => "equipment/dome/disconnect",
                 "nina_get_dome_info" => "equipment/dome/info",
                 "nina_list_dome_devices" => "equipment/dome/list-devices",
-                "nina_open_dome_shutter" => "equipment/dome/open-shutter",
-                "nina_close_dome_shutter" => "equipment/dome/close-shutter",
+                "nina_rescan_dome" => "equipment/dome/rescan",
+                "nina_open_dome_shutter" => "equipment/dome/open", // Correct path based on API spec
+                "nina_close_dome_shutter" => "equipment/dome/close", // Correct path based on API spec
+                "nina_stop_dome" => "equipment/dome/stop",
+                "nina_set_dome_follow" => BuildEndpoint("equipment/dome/set-follow", argsDict, "follow", "enable"),
+                "nina_sync_dome" => BuildEndpoint("equipment/dome/sync", argsDict, "azimuth", "azimuth"),
                 "nina_park_dome" => "equipment/dome/park",
+                "nina_set_dome_park_position" => "equipment/dome/set-park-position",
                 "nina_home_dome" => "equipment/dome/home",
                 "nina_slew_dome" => BuildEndpoint("equipment/dome/slew", argsDict, "azimuth", "azimuth"),
                 
@@ -1102,9 +1497,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_connect_rotator" => BuildEndpoint("equipment/rotator/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_rotator" => "equipment/rotator/disconnect",
                 "nina_list_rotator_devices" => "equipment/rotator/list-devices",
+                "nina_rescan_rotator" => "equipment/rotator/rescan",
                 "nina_get_rotator_info" => "equipment/rotator/info",
                 "nina_move_rotator" => BuildRotatorMoveEndpoint(argsDict),
-                "nina_halt_rotator" => "equipment/rotator/halt",
+                "nina_move_rotator_mechanical" => BuildEndpoint("equipment/rotator/move-mechanical", argsDict, "position", "position"),
+                "nina_set_rotator_mechanical_range" => BuildRotatorRangeEndpoint(argsDict),
+                "nina_halt_rotator" => "equipment/rotator/stop-move", // using stop-move as halt/stop is mapped here
                 "nina_sync_rotator" => BuildEndpoint("equipment/rotator/sync", argsDict, "position", "position"),
                 "nina_set_rotator_reverse" => BuildEndpoint("equipment/rotator/reverse", argsDict, "enabled", "enabled"),
                 
@@ -1112,6 +1510,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_connect_flatpanel" => BuildEndpoint("equipment/flatdevice/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_flatpanel" => "equipment/flatdevice/disconnect",
                 "nina_list_flatpanel_devices" => "equipment/flatdevice/list-devices",
+                "nina_rescan_flatpanel" => "equipment/flatdevice/rescan",
                 "nina_get_flatpanel_info" => "equipment/flatdevice/info",
                 "nina_set_flatpanel_light" => BuildEndpoint("equipment/flatdevice/set-light", argsDict, "power", "power"),
                 "nina_set_flatpanel_cover" => BuildEndpoint("equipment/flatdevice/set-cover", argsDict, "closed", "closed"),
@@ -1121,6 +1520,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_connect_switch" => BuildEndpoint("equipment/switch/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_switch" => "equipment/switch/disconnect",
                 "nina_list_switch_devices" => "equipment/switch/list-devices",
+                "nina_rescan_switch" => "equipment/switch/rescan",
                 "nina_get_switch_channels" => "equipment/switch/info",
                 "nina_set_switch" => BuildSwitchEndpoint(argsDict),
                 
@@ -1129,12 +1529,14 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_disconnect_weather" => "equipment/weather/disconnect",
                 "nina_get_weather_info" => "equipment/weather/info",
                 "nina_list_weather_sources" => "equipment/weather/list-devices",
+                "nina_rescan_weather" => "equipment/weather/rescan",
                 
                 // Safety Monitor
                 "nina_connect_safetymonitor" => BuildEndpoint("equipment/safetymonitor/connect", argsDict, "device_id", "to"),
                 "nina_disconnect_safetymonitor" => "equipment/safetymonitor/disconnect",
                 "nina_get_safetymonitor_info" => "equipment/safetymonitor/info",
                 "nina_list_safetymonitor_devices" => "equipment/safetymonitor/list-devices",
+                "nina_rescan_safetymonitor" => "equipment/safetymonitor/rescan",
                 
                 // Advanced Camera
                 "nina_set_binning" => BuildEndpoint("equipment/camera/set-binning", argsDict, "binning", "binning"),
@@ -1145,9 +1547,10 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 
                 // Advanced Focuser
                 "nina_start_autofocus" => BuildAutofocusEndpoint(argsDict),
-                "nina_cancel_autofocus" => "equipment/focuser/autofocus/cancel",
-                "nina_get_autofocus_status" => "equipment/focuser/autofocus/status",
-                "nina_halt_focuser" => "equipment/focuser/halt",
+                "nina_cancel_autofocus" => "equipment/focuser/auto-focus?cancel=true",
+                "nina_get_autofocus_status" => "equipment/focuser/auto-focus",
+                "nina_get_last_autofocus" => "equipment/focuser/last-af",
+                "nina_halt_focuser" => "equipment/focuser/stop-move", // using stop-move as halt is not explicitly in docs for focuser
                 
                 // Sequence
                 "nina_sequence_start" => BuildSequenceStartEndpoint(argsDict),
@@ -1171,6 +1574,36 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 
                 _ => ""
             };
+        }
+
+        private string BuildAddFilterEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("position", out var position))
+                parameters.Add($"position={position}");
+            if (args.TryGetValue("name", out var name))
+                parameters.Add($"name={Uri.EscapeDataString(name.ToString()!)}");
+            if (args.TryGetValue("autoFocusExposure", out var autoFocusExposure))
+                parameters.Add($"autoFocusExposure={autoFocusExposure}");
+            if (args.TryGetValue("flatWizardExposure", out var flatWizardExposure))
+                parameters.Add($"flatWizardExposure={flatWizardExposure}");
+            if (args.TryGetValue("focusOffset", out var focusOffset))
+                parameters.Add($"focusOffset={focusOffset}");
+                
+            return parameters.Count > 0 ? $"equipment/filterwheel/add-filter?{string.Join("&", parameters)}" : "equipment/filterwheel/add-filter";
+        }
+
+        private string BuildRotatorRangeEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("min", out var min))
+                parameters.Add($"min={min}");
+            if (args.TryGetValue("max", out var max))
+                parameters.Add($"max={max}");
+                
+            return parameters.Count > 0 ? $"equipment/rotator/set-mechanical-range?{string.Join("&", parameters)}" : "equipment/rotator/set-mechanical-range";
         }
 
         private string BuildEndpoint(string baseEndpoint, Dictionary<string, object> args, string argKey, string paramName)
@@ -1337,7 +1770,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             if (args.TryGetValue("method", out var method))
                 parameters.Add($"method={method}");
                 
-            return parameters.Count > 0 ? $"equipment/focuser/autofocus?{string.Join("&", parameters)}" : "equipment/focuser/autofocus";
+            return parameters.Count > 0 ? $"equipment/focuser/auto-focus?{string.Join("&", parameters)}" : "equipment/focuser/auto-focus";
         }
 
         private string BuildSequenceStartEndpoint(Dictionary<string, object> args)

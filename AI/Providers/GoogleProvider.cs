@@ -40,6 +40,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 _config = config;
 
                 _httpClient = new HttpClient();
+                _httpClient.Timeout = TimeSpan.FromMinutes(5);
                 _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
                 Logger.Info("Google Gemini provider initialized successfully");
@@ -161,13 +162,7 @@ namespace NINA.Plugin.AIAssistant.AI
             var response = await _httpClient!.PostAsync(url, content, cancellationToken);
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.Error($"Google Gemini API error: {responseContent}");
-                return new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
-            }
-
-            return ParseResponse(responseContent, modelId);
+            return ParseResponse(responseContent, modelId, response.Headers);
         }
 
         private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
@@ -188,6 +183,16 @@ namespace NINA.Plugin.AIAssistant.AI
                     var externalTools = await _externalMcpClient.GetToolsAsync(cancellationToken);
                     foreach (var tool in externalTools)
                     {
+                        var toolName = tool["name"]?.ToString();
+                        if (string.IsNullOrEmpty(toolName)) continue;
+                        
+                        // Check for name collision with NINA built-in tools
+                        if (allTools.Any(t => t.Name == toolName))
+                        {
+                            Logger.Warning($"GoogleProvider: Skipping external MCP tool '{toolName}' because a tool with this name already exists");
+                            continue;
+                        }
+
                         // Convert JObject to MCPTool
                         var properties = tool["inputSchema"]?["properties"]?.ToObject<JObject>();
                         var propDict = new Dictionary<string, MCPToolParameter>();
@@ -338,10 +343,10 @@ namespace NINA.Plugin.AIAssistant.AI
                     }
                 }
 
-                // If no function calls, return the text response
+                // If no tool use, return the response
                 if (functionCalls.Count == 0)
                 {
-                    var finalResponse = ParseResponse(responseContent, modelId);
+                    var finalResponse = ParseResponse(responseContent, modelId, response.Headers);
                     if (allToolResults.Count > 0)
                     {
                         finalResponse.Metadata ??= new Dictionary<string, object>();
@@ -351,15 +356,14 @@ namespace NINA.Plugin.AIAssistant.AI
                     return finalResponse;
                 }
 
-                // Execute functions and collect results
-                var functionResponses = new List<object>();
-                foreach (var functionCall in functionCalls)
+                // Execute functions and collect results concurrently
+                var functionTasks = functionCalls.Select(async functionCall =>
                 {
                     var functionName = functionCall["name"]?.ToString() ?? "";
                     var functionArgs = functionCall["args"]?.ToObject<Dictionary<string, object>>();
 
                     Logger.Info($"[MCP] Executing function: {functionName}");
-                    Logger.Debug($"[MCP] Function arguments: {JsonConvert.SerializeObject(functionArgs)}");
+                    Logger.Debug($"[MCP] Function arguments: {(functionArgs != null ? JsonConvert.SerializeObject(functionArgs) : "null")}");
                     
                     // Try built-in first, then external
                     MCPToolResult? result = null;
@@ -400,33 +404,37 @@ namespace NINA.Plugin.AIAssistant.AI
                     }
                     
                     Logger.Info($"[MCP] Function {functionName} completed - Success: {result.Success} ({(isExternal ? "External" : "Built-in")})");
-                    if (result.Success)
-                    {
-                        Logger.Debug($"[MCP] Function result: {result.Content?.Substring(0, Math.Min(200, result.Content?.Length ?? 0))}");
-                    }
-                    else
-                    {
-                        Logger.Error($"[MCP] Function error: {result.Error}");
-                    }
                     
                     var resultContent = result.Success 
                         ? result.Content ?? "Function executed successfully" 
                         : $"Error: {result.Error}";
                     
-                    allToolResults.Add($"{functionName}: {(result.Success ? "Success" : "Failed")}");
-                    
-                    functionResponses.Add(new
+                    return new
                     {
-                        functionResponse = new
+                        FunctionName = functionName,
+                        Success = result.Success,
+                        ResultObj = new
                         {
-                            name = functionName,
-                            response = new
+                            functionResponse = new
                             {
                                 name = functionName,
-                                content = resultContent
+                                response = new
+                                {
+                                    name = functionName,
+                                    content = resultContent
+                                }
                             }
                         }
-                    });
+                    };
+                }).ToList();
+
+                var completedTasks = await Task.WhenAll(functionTasks);
+                var functionResponses = new List<object>();
+
+                foreach (var t in completedTasks)
+                {
+                    allToolResults.Add($"{t.FunctionName}: {(t.Success ? "Success" : "Failed")}");
+                    functionResponses.Add(t.ResultObj);
                 }
 
                 // Add function results to conversation
@@ -444,23 +452,69 @@ namespace NINA.Plugin.AIAssistant.AI
             };
         }
 
-        private AIResponse ParseResponse(string responseContent, string modelId)
+        private AIResponse ParseResponse(string responseContent, string modelId, System.Net.Http.Headers.HttpResponseHeaders? headers = null)
         {
             var jsonResponse = JObject.Parse(responseContent);
-            var messageContent = jsonResponse["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
-            var tokensUsed = jsonResponse["usageMetadata"]?["totalTokenCount"]?.Value<int>();
+            var candidates = jsonResponse["candidates"] as JArray;
+            var messageContent = candidates?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
+            
+            var usage = jsonResponse["usageMetadata"];
+            var promptTokens = usage?["promptTokenCount"]?.Value<int>() ?? 0;
+            var candidatesTokens = usage?["candidatesTokenCount"]?.Value<int>() ?? 0;
+            var totalTokens = usage?["totalTokenCount"]?.Value<int>() ?? 0;
 
-            return new AIResponse
+            var response = new AIResponse
             {
                 Success = true,
                 Content = messageContent,
                 ModelUsed = modelId,
-                TokensUsed = tokensUsed,
+                TokensUsed = totalTokens,
                 Metadata = new Dictionary<string, object>
                 {
-                    ["provider"] = "Google"
+                    ["provider"] = "Google",
+                    ["input_tokens"] = promptTokens,
+                    ["output_tokens"] = candidatesTokens
                 }
             };
+
+            if (headers != null)
+            {
+                CaptureRateLimits(headers, response);
+            }
+
+            return response;
+        }
+
+        private void CaptureRateLimits(System.Net.Http.Headers.HttpResponseHeaders headers, AIResponse aiResponse)
+        {
+            try
+            {
+                aiResponse.Metadata ??= new Dictionary<string, object>();
+
+                // Gemini headers are not standard, but let's try some common ones
+                var limitHeaders = new Dictionary<string, string>
+                {
+                    ["x-ratelimit-limit-requests"] = "requests_limit",
+                    ["x-ratelimit-remaining-requests"] = "requests_remaining",
+                    ["x-ratelimit-reset-requests"] = "requests_reset",
+                    ["x-ratelimit-limit-tokens"] = "tokens_limit",
+                    ["x-ratelimit-remaining-tokens"] = "tokens_remaining",
+                    ["x-ratelimit-reset-tokens"] = "tokens_reset",
+                    ["retry-after"] = "retry_after"
+                };
+
+                foreach (var header in limitHeaders)
+                {
+                    if (headers.TryGetValues(header.Key, out var values))
+                    {
+                        aiResponse.Metadata[header.Value] = values.FirstOrDefault() ?? "";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug($"Failed to capture Google rate limit headers: {ex.Message}");
+            }
         }
 
         private string GetMCPSystemPrompt()
@@ -470,10 +524,12 @@ namespace NINA.Plugin.AIAssistant.AI
 IMPORTANT: You have FUNCTIONS that you MUST USE to interact with NINA. Do NOT just explain how to do things - USE THE FUNCTIONS to actually do them.
 
 Available functions include:
+- nina_connect_all_equipment: Connect all equipment at once (USE THIS when asked to 'connect all' instead of calling individual connect tools)
+- nina_disconnect_all_equipment: Disconnect all equipment at once (USE THIS when asked to 'disconnect all' instead of calling individual disconnect tools)
 - nina_get_status: Get equipment status (USE THIS when asked about equipment status)
 - nina_get_version: Get NINA version
-- nina_connect_camera, nina_capture_image: Camera control
-- nina_connect_mount, nina_slew_mount, nina_park_mount: Mount control
+- nina_connect_camera, nina_disconnect_camera, nina_capture_image: Camera control
+- nina_connect_mount, nina_disconnect_mount, nina_slew_mount, nina_park_mount: Mount control
 - nina_connect_focuser, nina_move_focuser: Focuser control
 - nina_connect_filterwheel, nina_change_filter: Filter wheel control
 - nina_start_guiding, nina_stop_guiding: Guider control
@@ -483,7 +539,7 @@ When the user asks to check equipment, get status, or perform ANY action:
 2. Report the actual results from the function
 3. Provide helpful interpretation of the data
 
-For example, if user says 'check equipment' or 'show status', USE nina_get_status function first.";
+For example, if user says 'check equipment' or 'show status', USE nina_get_status function first. If user says 'connect all', USE nina_connect_all_equipment.";
         }
 
         public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
