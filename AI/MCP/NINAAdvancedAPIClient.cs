@@ -24,7 +24,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
         public NINAAdvancedAPIClient()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(120); // Long timeout for captures
+            _httpClient.Timeout = TimeSpan.FromSeconds(300); // Long timeout for captures + plate solving
         }
 
         public bool IsConnected => _isConnected;
@@ -77,7 +77,25 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_get_version",
-                    Description = "Get the version of NINA and the Advanced API",
+                    Description = "Get the version of the NINA Advanced API plugin",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_nina_version",
+                    Description = "Get the version of NINA itself",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["friendly"] = new MCPToolParameter { Type = "boolean", Description = "If true, returns version in a friendly format (e.g., '3.2 NIGHTLY #058' instead of '3.2.0.1058')" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_start_time",
+                    Description = "Get the time NINA was started",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -129,7 +147,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                             ["duration"] = new MCPToolParameter { Type = "number", Description = "Exposure time in seconds" },
                             ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain setting" },
                             ["download"] = new MCPToolParameter { Type = "boolean", Description = "Whether to download the image data" },
-                            ["solve"] = new MCPToolParameter { Type = "boolean", Description = "Whether to plate solve the image" }
+                            ["solve"] = new MCPToolParameter { Type = "boolean", Description = "Whether to plate solve the image after capture. The call will wait for the solve to complete and return the solve results." }
                         }
                     }
                 },
@@ -137,6 +155,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_rescan_camera",
                     Description = "Rescan for camera devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_list_camera_devices",
+                    Description = "List available camera devices",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -257,15 +281,24 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_list_mount_devices",
+                    Description = "List all available mount devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_slew_mount",
-                    Description = "Slew the mount to specified coordinates",
+                    Description = "Slew the mount to specified coordinates. Can optionally center on target with plate solving or rotate to match a framing angle.",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
                             ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in hours (0-24)" },
                             ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees (-90 to +90)" },
-                            ["wait_for_completion"] = new MCPToolParameter { Type = "boolean", Description = "Whether to wait for slew to complete", Default = "true" }
+                            ["waitForResult"] = new MCPToolParameter { Type = "boolean", Description = "Whether to wait for slew to complete (default: true)" },
+                            ["center"] = new MCPToolParameter { Type = "boolean", Description = "Whether to center on the target using plate solving after slew" },
+                            ["rotate"] = new MCPToolParameter { Type = "boolean", Description = "Whether to perform a center and rotate to match a specific rotation angle" },
+                            ["rotationAngle"] = new MCPToolParameter { Type = "number", Description = "The rotation angle in degrees (used with rotate=true)" }
                         },
                         Required = new List<string> { "ra", "dec" }
                     }
@@ -285,7 +318,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_set_mount_park_position",
-                    Description = "Set the current mount position as the park position",
+                    Description = "Set the current mount position as the park position. Requires mount to be unparked.",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -297,8 +330,27 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_stop_slew",
-                    Description = "Stop the mount's current slew",
+                    Description = "Stop the mount's current slew. Best for simple slews without center/rotate. With center or rotate, may take a few seconds.",
                     InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_flip_mount",
+                    Description = "Perform a meridian flip. Only flips if needed based on current pier side, will not force the mount to flip.",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_sync_mount",
+                    Description = "Sync the mount. If RA/Dec coordinates are provided, syncs to those coordinates. If omitted, performs a plate solve and syncs to solved coordinates.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in hours (0-24). If omitted, a plate solve will be performed." },
+                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees (-90 to +90). If omitted, a plate solve will be performed." }
+                        }
+                    }
                 },
                 new MCPTool
                 {
@@ -359,13 +411,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_move_focuser",
-                    Description = "Move the focuser to a specific position",
+                    Description = "Move the focuser to a specific absolute position in steps",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Target position in steps" },
-                            ["relative"] = new MCPToolParameter { Type = "boolean", Description = "Whether position is relative to current" }
+                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Target absolute position in steps" }
                         },
                         Required = new List<string> { "position" }
                     }
@@ -410,6 +461,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_list_filterwheel_devices",
+                    Description = "List available filter wheel devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_change_filter",
                     Description = "Change to a specific filter",
                     InputSchema = new MCPToolInputSchema
@@ -424,44 +481,33 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_add_filter",
-                    Description = "Add a new filter to the filter wheel position",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Position index" },
-                            ["name"] = new MCPToolParameter { Type = "string", Description = "Name of the filter" },
-                            ["autoFocusExposure"] = new MCPToolParameter { Type = "number", Description = "Autofocus exposure time" },
-                            ["flatWizardExposure"] = new MCPToolParameter { Type = "number", Description = "Flat wizard exposure time" },
-                            ["focusOffset"] = new MCPToolParameter { Type = "integer", Description = "Focus offset" }
-                        },
-                        Required = new List<string> { "position", "name" }
-                    }
+                    Description = "Add a new filter slot to the filter wheel configuration",
+                    InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
                 {
                     Name = "nina_remove_filter",
-                    Description = "Remove a filter by its position",
+                    Description = "Remove a filter by its filter ID",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Position index to remove" }
+                            ["filter_id"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to remove" }
                         },
-                        Required = new List<string> { "position" }
+                        Required = new List<string> { "filter_id" }
                     }
                 },
                 new MCPTool
                 {
                     Name = "nina_get_filter_info",
-                    Description = "Get details of a filter by its position",
+                    Description = "Get details of a filter by its filter ID",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["position"] = new MCPToolParameter { Type = "integer", Description = "Filter position index" }
+                            ["filter_id"] = new MCPToolParameter { Type = "integer", Description = "Filter ID" }
                         },
-                        Required = new List<string> { "position" }
+                        Required = new List<string> { "filter_id" }
                     }
                 },
 
@@ -498,6 +544,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_list_guider_devices",
+                    Description = "List available guider devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_start_guiding",
                     Description = "Start guiding with optional calibration",
                     InputSchema = new MCPToolInputSchema
@@ -516,14 +568,14 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
-                    Name = "nina_calibrate_guider",
-                    Description = "Calibrate the guider without starting guiding",
+                    Name = "nina_clear_guider_calibration",
+                    Description = "Clear the guider calibration",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
                 {
-                    Name = "nina_clear_guider_calibration",
-                    Description = "Clear the guider calibration",
+                    Name = "nina_get_guider_graph",
+                    Description = "Get the guider graph data (RMS, guide pulses, etc.)",
                     InputSchema = new MCPToolInputSchema()
                 },
 
@@ -560,6 +612,18 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
+                    Name = "nina_list_dome_devices",
+                    Description = "List available dome devices",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_home_dome",
+                    Description = "Send the dome to its home position",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
                     Name = "nina_stop_dome",
                     Description = "Stop dome movement",
                     InputSchema = new MCPToolInputSchema()
@@ -580,15 +644,8 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_sync_dome",
-                    Description = "Sync dome position with azimuth",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["azimuth"] = new MCPToolParameter { Type = "number", Description = "Azimuth in degrees" }
-                        },
-                        Required = new List<string> { "azimuth" }
-                    }
+                    Description = "Sync dome position with the current mount position",
+                    InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
                 {
@@ -622,7 +679,8 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["azimuth"] = new MCPToolParameter { Type = "number", Description = "Target azimuth in degrees" }
+                            ["azimuth"] = new MCPToolParameter { Type = "number", Description = "Target azimuth in degrees" },
+                            ["waitToFinish"] = new MCPToolParameter { Type = "boolean", Description = "Whether to wait for the dome to finish slewing (default: false)" }
                         },
                         Required = new List<string> { "azimuth" }
                     }
@@ -637,8 +695,15 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["limit"] = new MCPToolParameter { Type = "integer", Description = "Maximum number of images to return" },
-                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Offset for pagination" }
+                            ["all"] = new MCPToolParameter { Type = "boolean", Description = "Return all entries (default: true)" },
+                            ["index"] = new MCPToolParameter { Type = "integer", Description = "Starting index" },
+                            ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of entries to return" },
+                            ["imageType"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Filter by image type",
+                                Enum = new List<string> { "LIGHT", "DARK", "BIAS", "FLAT", "SNAPSHOT" }
+                            }
                         }
                     }
                 },
@@ -652,30 +717,151 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["tab"] = new MCPToolParameter { Type = "string", Description = "Name of the tab to switch to" }
+                            ["tab"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Name of the tab to switch to",
+                                Enum = new List<string> { "equipment", "skyatlas", "framing", "flatwizard", "sequencer", "imaging", "options" }
+                            }
                         },
                         Required = new List<string> { "tab" }
                     }
                 },
                 new MCPTool
                 {
-                    Name = "nina_get_plugins",
-                    Description = "Get information about installed NINA plugins",
+                    Name = "nina_get_tab",
+                    Description = "Get the current active tab in NINA",
                     InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_plugins",
+                    Description = "Get a list of installed NINA plugins",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_plugin_settings",
+                    Description = "Get the Advanced API plugin settings (e.g., AccessControlHeaderEnabled, ShouldCreateThumbnails)",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_logs",
+                    Description = "Get the last N log entries from NINA. Useful for diagnosing issues.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["lineCount"] = new MCPToolParameter { Type = "integer", Description = "Number of log lines to return" },
+                            ["level"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Minimum log level filter",
+                                Enum = new List<string> { "TRACE", "DEBUG", "INFO", "WARNING", "ERROR" }
+                            }
+                        },
+                        Required = new List<string> { "lineCount" }
+                    }
                 },
 
                 // Flats
                 new MCPTool
                 {
-                    Name = "nina_start_flats",
-                    Description = "Start capturing flat frames",
+                    Name = "nina_skyflat",
+                    Description = "Capture sky flat frames with automatic exposure settings",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
                             ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of flats to capture" },
+                            ["minExposure"] = new MCPToolParameter { Type = "number", Description = "Minimum exposure time in seconds" },
+                            ["maxExposure"] = new MCPToolParameter { Type = "number", Description = "Maximum exposure time in seconds" },
+                            ["histogramMean"] = new MCPToolParameter { Type = "number", Description = "Target histogram mean (0-1)" },
+                            ["meanTolerance"] = new MCPToolParameter { Type = "number", Description = "Tolerance for histogram mean" },
+                            ["dither"] = new MCPToolParameter { Type = "boolean", Description = "Whether to dither between flats" },
+                            ["filterId"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to use" },
                             ["binning"] = new MCPToolParameter { Type = "string", Description = "Binning mode (e.g., 1x1, 2x2)" },
-                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" }
+                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" },
+                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Camera offset" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_auto_brightness_flat",
+                    Description = "Capture flat frames with automatic brightness adjustment (for flat panels)",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of flats to capture" },
+                            ["exposureTime"] = new MCPToolParameter { Type = "number", Description = "Exposure time in seconds" },
+                            ["minBrightness"] = new MCPToolParameter { Type = "integer", Description = "Minimum panel brightness (0-100)" },
+                            ["maxBrightness"] = new MCPToolParameter { Type = "integer", Description = "Maximum panel brightness (0-100)" },
+                            ["histogramMean"] = new MCPToolParameter { Type = "number", Description = "Target histogram mean (0-1)" },
+                            ["meanTolerance"] = new MCPToolParameter { Type = "number", Description = "Tolerance for histogram mean" },
+                            ["filterId"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to use" },
+                            ["binning"] = new MCPToolParameter { Type = "string", Description = "Binning mode (e.g., 1x1, 2x2)" },
+                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" },
+                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Camera offset" },
+                            ["keepClosed"] = new MCPToolParameter { Type = "boolean", Description = "Keep flat panel cover closed" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_auto_exposure_flat",
+                    Description = "Capture flat frames with automatic exposure adjustment (for flat panels)",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of flats to capture" },
+                            ["brightness"] = new MCPToolParameter { Type = "integer", Description = "Panel brightness (0-100)" },
+                            ["minExposure"] = new MCPToolParameter { Type = "number", Description = "Minimum exposure time in seconds" },
+                            ["maxExposure"] = new MCPToolParameter { Type = "number", Description = "Maximum exposure time in seconds" },
+                            ["histogramMean"] = new MCPToolParameter { Type = "number", Description = "Target histogram mean (0-1)" },
+                            ["meanTolerance"] = new MCPToolParameter { Type = "number", Description = "Tolerance for histogram mean" },
+                            ["filterId"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to use" },
+                            ["binning"] = new MCPToolParameter { Type = "string", Description = "Binning mode (e.g., 1x1, 2x2)" },
+                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" },
+                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Camera offset" },
+                            ["keepClosed"] = new MCPToolParameter { Type = "boolean", Description = "Keep flat panel cover closed" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_trained_dark_flat",
+                    Description = "Capture trained dark flat frames using saved exposure settings",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of flats to capture" },
+                            ["filterId"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to use" },
+                            ["binning"] = new MCPToolParameter { Type = "string", Description = "Binning mode (e.g., 1x1, 2x2)" },
+                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" },
+                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Camera offset" },
+                            ["keepClosed"] = new MCPToolParameter { Type = "boolean", Description = "Keep flat panel cover closed" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_trained_flat",
+                    Description = "Capture trained flat frames using saved exposure settings",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["count"] = new MCPToolParameter { Type = "integer", Description = "Number of flats to capture" },
+                            ["filterId"] = new MCPToolParameter { Type = "integer", Description = "Filter ID to use" },
+                            ["binning"] = new MCPToolParameter { Type = "string", Description = "Binning mode (e.g., 1x1, 2x2)" },
+                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Camera gain" },
+                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Camera offset" },
+                            ["keepClosed"] = new MCPToolParameter { Type = "boolean", Description = "Keep flat panel cover closed" }
                         }
                     }
                 },
@@ -683,6 +869,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 {
                     Name = "nina_stop_flats",
                     Description = "Stop capturing flat frames",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_flats_status",
+                    Description = "Get the current status of flat frame capturing",
                     InputSchema = new MCPToolInputSchema()
                 },
 
@@ -726,13 +918,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_move_rotator",
-                    Description = "Move the rotator to a specific position",
+                    Description = "Move the rotator to a specific position in degrees",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["position"] = new MCPToolParameter { Type = "number", Description = "Target position in degrees" },
-                            ["relative"] = new MCPToolParameter { Type = "boolean", Description = "Whether position is relative to current" }
+                            ["position"] = new MCPToolParameter { Type = "number", Description = "Target position in degrees" }
                         },
                         Required = new List<string> { "position" }
                     }
@@ -758,10 +949,15 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["min"] = new MCPToolParameter { Type = "number", Description = "Minimum angle" },
-                            ["max"] = new MCPToolParameter { Type = "number", Description = "Maximum angle" }
+                            ["range"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Range type for the rotator",
+                                Enum = new List<string> { "full", "half", "quarter" }
+                            },
+                            ["rangeStartPosition"] = new MCPToolParameter { Type = "number", Description = "Starting position for the range" }
                         },
-                        Required = new List<string> { "min", "max" }
+                        Required = new List<string> { "range" }
                     }
                 },
                 new MCPTool
@@ -772,26 +968,13 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
-                    Name = "nina_sync_rotator",
-                    Description = "Sync the rotator to a specific position",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["position"] = new MCPToolParameter { Type = "number", Description = "Position to sync to in degrees" }
-                        },
-                        Required = new List<string> { "position" }
-                    }
-                },
-                new MCPTool
-                {
                     Name = "nina_set_rotator_reverse",
-                    Description = "Set the rotator's reverse state",
+                    Description = "Set the rotator's reverse direction state",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["enabled"] = new MCPToolParameter { Type = "boolean", Description = "True to enable reverse, False to disable" }
+                            ["enabled"] = new MCPToolParameter { Type = "boolean", Description = "True to enable reverse direction, False to disable" }
                         },
                         Required = new List<string> { "enabled" }
                     }
@@ -837,14 +1020,14 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_set_flatpanel_light",
-                    Description = "Set the flat panel light state",
+                    Description = "Turn the flat panel light on or off",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["power"] = new MCPToolParameter { Type = "boolean", Description = "True to enable, False to disable" }
+                            ["on"] = new MCPToolParameter { Type = "boolean", Description = "True to turn on, False to turn off" }
                         },
-                        Required = new List<string> { "power" }
+                        Required = new List<string> { "on" }
                     }
                 },
                 new MCPTool
@@ -1032,32 +1215,6 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 },
                 new MCPTool
                 {
-                    Name = "nina_set_camera_gain",
-                    Description = "Set the camera gain",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["gain"] = new MCPToolParameter { Type = "integer", Description = "Gain value" }
-                        },
-                        Required = new List<string> { "gain" }
-                    }
-                },
-                new MCPTool
-                {
-                    Name = "nina_set_camera_offset",
-                    Description = "Set the camera offset",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["offset"] = new MCPToolParameter { Type = "integer", Description = "Offset value" }
-                        },
-                        Required = new List<string> { "offset" }
-                    }
-                },
-                new MCPTool
-                {
                     Name = "nina_start_warming",
                     Description = "Start warming the camera",
                     InputSchema = new MCPToolInputSchema
@@ -1073,25 +1230,13 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_start_autofocus",
-                    Description = "Start an autofocus routine",
-                    InputSchema = new MCPToolInputSchema
-                    {
-                        Properties = new Dictionary<string, MCPToolParameter>
-                        {
-                            ["method"] = new MCPToolParameter { Type = "string", Description = "Autofocus method" }
-                        }
-                    }
+                    Description = "Start an autofocus routine using the configured autofocus method",
+                    InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
                 {
                     Name = "nina_cancel_autofocus",
                     Description = "Cancel the current autofocus routine",
-                    InputSchema = new MCPToolInputSchema()
-                },
-                new MCPTool
-                {
-                    Name = "nina_get_autofocus_status",
-                    Description = "Get the status of the current autofocus routine",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
@@ -1179,47 +1324,266 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in degrees" },
-                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees" }
+                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in hours (0-24)" },
+                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees (-90 to +90)" }
                         },
                         Required = new List<string> { "ra", "dec" }
                     }
                 },
 
                 // Framing Assistant Operations
+                // Framing Assistant Operations
                 new MCPTool
                 {
                     Name = "nina_get_framingassistant_info",
-                    Description = "Get information about the current framing assistant state",
+                    Description = "Get information about the current framing assistant state (coordinates, field of view, rotation, panel layout, etc.)",
                     InputSchema = new MCPToolInputSchema()
                 },
                 new MCPTool
                 {
                     Name = "nina_set_framingassistant_source",
-                    Description = "Set the source/target for the framing assistant",
+                    Description = "Set the sky survey image source for the framing assistant. The framing assistant must be initialized first (opened once in the UI).",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
-                            ["source"] = new MCPToolParameter { Type = "string", Description = "Source identifier or name (e.g., M31, NGC7000)" }
+                            ["source"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Sky survey source to use for framing images",
+                                Enum = new List<string> { "NASA", "SKYSERVER", "STSCI", "ESO", "HIPS2FITS", "SKYATLAS", "FILE", "CACHE" }
+                            }
                         },
                         Required = new List<string> { "source" }
                     }
                 },
                 new MCPTool
                 {
+                    Name = "nina_set_framingassistant_coordinates",
+                    Description = "Set the framing assistant target coordinates. Use your knowledge of deep sky object coordinates (e.g., M31 = RA 0.712h, Dec 41.27°; M42 = RA 5.588h, Dec -5.39°). The framing assistant must be initialized first (opened once in the UI).",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in hours (0-24)" },
+                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees (-90 to +90)" }
+                        },
+                        Required = new List<string> { "ra", "dec" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_set_framingassistant_rotation",
+                    Description = "Set the framing assistant rotation angle. The framing assistant must be initialized first (opened once in the UI).",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["rotation"] = new MCPToolParameter { Type = "number", Description = "Rotation angle in degrees" }
+                        },
+                        Required = new List<string> { "rotation" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_determine_framingassistant_rotation",
+                    Description = "Determine the framing assistant rotation from the camera. Requires an image to be loaded in the framing assistant. The framing assistant must be initialized first.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["waitForResult"] = new MCPToolParameter { Type = "boolean", Description = "Whether to wait for the rotation determination to complete (recommended: true)" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
                     Name = "nina_framingassistant_slew",
-                    Description = "Slew the mount to the framing assistant target coordinates",
+                    Description = "Slew the mount to the framing assistant target coordinates. The framing assistant must be initialized first (opened once in the UI).",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["slew_option"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Slew option: Center (center on target with plate solving), Rotate (rotate to match framing angle), or omit for simple slew",
+                                Enum = new List<string> { "Center", "Rotate" }
+                            },
+                            ["waitForResult"] = new MCPToolParameter { Type = "boolean", Description = "Whether to wait for the slew to finish" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_moon_separation",
+                    Description = "Calculate the moon separation angle for given coordinates at the current time and location. Useful for planning observations.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in hours (0-24)" },
+                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees (-90 to +90)" }
+                        },
+                        Required = new List<string> { "ra", "dec" }
+                    }
+                },
+
+                // Profile Operations
+                new MCPTool
+                {
+                    Name = "nina_show_profile",
+                    Description = "Show profile information. Use active=true to see only the active profile, or active=false to see all profiles.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["active"] = new MCPToolParameter { Type = "boolean", Description = "If true, show only the active profile (default: false shows all profiles)" }
+                        }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_change_profile_value",
+                    Description = "Change a profile setting value by its path (e.g., 'CameraSettings.PixelSize', 'AstrometrySettings.Latitude')",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["settingpath"] = new MCPToolParameter { Type = "string", Description = "Setting path (e.g., CameraSettings.PixelSize)" },
+                            ["newValue"] = new MCPToolParameter { Type = "string", Description = "New value for the setting" }
+                        },
+                        Required = new List<string> { "settingpath", "newValue" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_switch_profile",
+                    Description = "Switch to a different NINA profile by its profile ID",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["profileid"] = new MCPToolParameter { Type = "string", Description = "Profile ID to switch to (get IDs from nina_show_profile)" }
+                        },
+                        Required = new List<string> { "profileid" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_horizon",
+                    Description = "Get the custom horizon data for the active profile",
                     InputSchema = new MCPToolInputSchema()
                 },
 
-                // Utility Operations
+                // Extended Sequence Operations
                 new MCPTool
                 {
-                    Name = "nina_time_now",
-                    Description = "Get the current time from the computer in various formats",
+                    Name = "nina_sequence_state",
+                    Description = "Get the current state of the running sequence (idle, running, etc.)",
                     InputSchema = new MCPToolInputSchema()
                 },
+                new MCPTool
+                {
+                    Name = "nina_sequence_edit",
+                    Description = "Edit a value in the sequence by JSON path",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["path"] = new MCPToolParameter { Type = "string", Description = "JSON path to the value to edit" },
+                            ["value"] = new MCPToolParameter { Type = "string", Description = "New value" }
+                        },
+                        Required = new List<string> { "path", "value" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_sequence_skip",
+                    Description = "Skip items in the current sequence",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["type"] = new MCPToolParameter
+                            {
+                                Type = "string",
+                                Description = "Type of skip operation",
+                                Enum = new List<string> { "CurrentItems", "ToEnd", "ToImaging" }
+                            }
+                        },
+                        Required = new List<string> { "type" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_sequence_reset",
+                    Description = "Reset the sequence to its initial state",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_sequence_list_available",
+                    Description = "List all available sequences that can be loaded",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "nina_sequence_set_target",
+                    Description = "Set or update a target in the sequence",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["name"] = new MCPToolParameter { Type = "string", Description = "Target name" },
+                            ["ra"] = new MCPToolParameter { Type = "number", Description = "Right Ascension in degrees" },
+                            ["dec"] = new MCPToolParameter { Type = "number", Description = "Declination in degrees" },
+                            ["rotation"] = new MCPToolParameter { Type = "number", Description = "Rotation angle in degrees" },
+                            ["index"] = new MCPToolParameter { Type = "integer", Description = "Target index in the sequence" }
+                        },
+                        Required = new List<string> { "name", "ra", "dec", "rotation", "index" }
+                    }
+                },
+
+                // Event History
+                new MCPTool
+                {
+                    Name = "nina_get_event_history",
+                    Description = "Get the history of events (equipment connections, captures, errors, etc.)",
+                    InputSchema = new MCPToolInputSchema()
+                },
+
+                // Image Operations
+                new MCPTool
+                {
+                    Name = "nina_get_image",
+                    Description = "Get a captured image by its index from the image history",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["index"] = new MCPToolParameter { Type = "integer", Description = "Image index in the history" },
+                            ["resize"] = new MCPToolParameter { Type = "number", Description = "Resize factor (e.g., 0.5 for half size)" },
+                            ["quality"] = new MCPToolParameter { Type = "integer", Description = "JPEG quality (0-100)" }
+                        },
+                        Required = new List<string> { "index" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "nina_get_thumbnail",
+                    Description = "Get a thumbnail of a captured image by its index",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["index"] = new MCPToolParameter { Type = "integer", Description = "Image index in the history" }
+                        },
+                        Required = new List<string> { "index" }
+                    }
+                },
+
+                // Utility Operations
                 new MCPTool
                 {
                     Name = "nina_wait",
@@ -1355,6 +1719,25 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                     };
                 }
 
+                // Special handling for nina_wait - this is a delay, not an API call
+                if (toolName == "nina_wait")
+                {
+                    var waitArgs = arguments ?? new Dictionary<string, object>();
+                    if (waitArgs.TryGetValue("seconds", out var seconds))
+                    {
+                        var waitDuration = Convert.ToDouble(seconds);
+                        Logger.Info($"Waiting for {waitDuration} seconds");
+                        await Task.Delay(TimeSpan.FromSeconds(waitDuration), cancellationToken);
+                        return new MCPToolResult
+                        {
+                            Success = true,
+                            Content = $"Waited for {waitDuration} seconds",
+                            Data = new Dictionary<string, object> { ["waited_seconds"] = waitDuration }
+                        };
+                    }
+                    return new MCPToolResult { Success = false, Error = "Missing required parameter: seconds" };
+                }
+
                 string endpoint = MapToolToEndpoint(toolName, arguments);
                 
                 if (string.IsNullOrEmpty(endpoint))
@@ -1399,8 +1782,10 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             return toolName switch
             {
                 // Status & Version
-                "nina_get_status" => "equipment/camera/info",  // TODO: This needs special handling to query all equipment
-                "nina_get_version" => "version",  // FIXED: Correct endpoint
+                "nina_get_status" => "equipment/info",
+                "nina_get_version" => "version",
+                "nina_get_nina_version" => BuildNinaVersionEndpoint(argsDict),
+                "nina_get_start_time" => "application-start",
                 
                 // Camera
                 "nina_connect_camera" => BuildEndpoint("equipment/camera/connect", argsDict, "device_id", "to"),
@@ -1429,8 +1814,9 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_unpark_mount" => "equipment/mount/unpark",
                 "nina_set_mount_park_position" => "equipment/mount/set-park-position",
                 "nina_home_mount" => "equipment/mount/home",
-                "nina_stop_slew" => "equipment/mount/stop-slew",
+                "nina_stop_slew" => "equipment/mount/slew/stop",
                 "nina_flip_mount" => "equipment/mount/flip",
+                "nina_sync_mount" => BuildSyncMountEndpoint(argsDict),
                 "nina_set_tracking_mode" => BuildTrackingEndpoint(argsDict),
                 
                 // Focuser
@@ -1450,8 +1836,8 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_rescan_filterwheel" => "equipment/filterwheel/rescan",
                 "nina_change_filter" => BuildEndpoint("equipment/filterwheel/change-filter", argsDict, "filter_id", "filterId"),
                 "nina_add_filter" => BuildAddFilterEndpoint(argsDict),
-                "nina_remove_filter" => BuildEndpoint("equipment/filterwheel/remove-filter", argsDict, "position", "position"),
-                "nina_get_filter_info" => BuildEndpoint("equipment/filterwheel/filter-info", argsDict, "position", "position"),
+                "nina_remove_filter" => BuildEndpoint("equipment/filterwheel/remove-filter", argsDict, "filter_id", "filterId"),
+                "nina_get_filter_info" => BuildEndpoint("equipment/filterwheel/filter-info", argsDict, "filter_id", "filterId"),
                 
                 // Guider
                 "nina_connect_guider" => BuildEndpoint("equipment/guider/connect", argsDict, "device_id", "to"),
@@ -1461,7 +1847,6 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_rescan_guider" => "equipment/guider/rescan",
                 "nina_start_guiding" => argsDict.ContainsKey("calibrate") && Convert.ToBoolean(argsDict["calibrate"]) ? "equipment/guider/start?calibrate=true" : "equipment/guider/start",
                 "nina_stop_guiding" => "equipment/guider/stop",
-                "nina_calibrate_guider" => "equipment/guider/calibrate",
                 "nina_clear_guider_calibration" => "equipment/guider/clear-calibration",
                 "nina_get_guider_graph" => "equipment/guider/graph",
                 
@@ -1474,22 +1859,29 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_open_dome_shutter" => "equipment/dome/open", // Correct path based on API spec
                 "nina_close_dome_shutter" => "equipment/dome/close", // Correct path based on API spec
                 "nina_stop_dome" => "equipment/dome/stop",
-                "nina_set_dome_follow" => BuildEndpoint("equipment/dome/set-follow", argsDict, "follow", "enable"),
-                "nina_sync_dome" => BuildEndpoint("equipment/dome/sync", argsDict, "azimuth", "azimuth"),
+                "nina_set_dome_follow" => BuildEndpoint("equipment/dome/set-follow", argsDict, "follow", "enabled"),
+                "nina_sync_dome" => "equipment/dome/sync",
                 "nina_park_dome" => "equipment/dome/park",
                 "nina_set_dome_park_position" => "equipment/dome/set-park-position",
                 "nina_home_dome" => "equipment/dome/home",
-                "nina_slew_dome" => BuildEndpoint("equipment/dome/slew", argsDict, "azimuth", "azimuth"),
+                "nina_slew_dome" => BuildDomeSlewEndpoint(argsDict),
                 
                 // Image History
                 "nina_get_image_history" => BuildImageHistoryEndpoint(argsDict),
                 
                 // Application
                 "nina_switch_tab" => BuildEndpoint("application/switch-tab", argsDict, "tab", "tab"),
+                "nina_get_tab" => "application/get-tab",
                 "nina_get_plugins" => "application/plugins",
+                "nina_get_plugin_settings" => "plugin/settings",
+                "nina_get_logs" => BuildLogsEndpoint(argsDict),
                 
                 // Flats
-                "nina_start_flats" => BuildFlatsEndpoint(argsDict),
+                "nina_skyflat" => BuildFlatsEndpoint("flats/skyflat", argsDict),
+                "nina_auto_brightness_flat" => BuildFlatsEndpoint("flats/auto-brightness", argsDict),
+                "nina_auto_exposure_flat" => BuildFlatsEndpoint("flats/auto-exposure", argsDict),
+                "nina_trained_dark_flat" => BuildFlatsEndpoint("flats/trained-dark-flat", argsDict),
+                "nina_trained_flat" => BuildFlatsEndpoint("flats/trained-flat", argsDict),
                 "nina_stop_flats" => "flats/stop",
                 "nina_get_flats_status" => "flats/status",
                 
@@ -1502,9 +1894,8 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_move_rotator" => BuildRotatorMoveEndpoint(argsDict),
                 "nina_move_rotator_mechanical" => BuildEndpoint("equipment/rotator/move-mechanical", argsDict, "position", "position"),
                 "nina_set_rotator_mechanical_range" => BuildRotatorRangeEndpoint(argsDict),
-                "nina_halt_rotator" => "equipment/rotator/stop-move", // using stop-move as halt/stop is mapped here
-                "nina_sync_rotator" => BuildEndpoint("equipment/rotator/sync", argsDict, "position", "position"),
-                "nina_set_rotator_reverse" => BuildEndpoint("equipment/rotator/reverse", argsDict, "enabled", "enabled"),
+                "nina_halt_rotator" => "equipment/rotator/stop-move",
+                "nina_set_rotator_reverse" => BuildEndpoint("equipment/rotator/reverse", argsDict, "enabled", "reverseDirection"),
                 
                 // Flat Panel
                 "nina_connect_flatpanel" => BuildEndpoint("equipment/flatdevice/connect", argsDict, "device_id", "to"),
@@ -1512,7 +1903,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 "nina_list_flatpanel_devices" => "equipment/flatdevice/list-devices",
                 "nina_rescan_flatpanel" => "equipment/flatdevice/rescan",
                 "nina_get_flatpanel_info" => "equipment/flatdevice/info",
-                "nina_set_flatpanel_light" => BuildEndpoint("equipment/flatdevice/set-light", argsDict, "power", "power"),
+                "nina_set_flatpanel_light" => BuildEndpoint("equipment/flatdevice/set-light", argsDict, "on", "on"),
                 "nina_set_flatpanel_cover" => BuildEndpoint("equipment/flatdevice/set-cover", argsDict, "closed", "closed"),
                 "nina_set_flatpanel_brightness" => BuildEndpoint("equipment/flatdevice/set-brightness", argsDict, "brightness", "brightness"),
                 
@@ -1541,22 +1932,38 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 // Advanced Camera
                 "nina_set_binning" => BuildEndpoint("equipment/camera/set-binning", argsDict, "binning", "binning"),
                 "nina_control_dew_heater" => BuildEndpoint("equipment/camera/dew-heater", argsDict, "power", "power"),
-                "nina_set_camera_gain" => BuildEndpoint("equipment/camera/set-gain", argsDict, "gain", "gain"),
-                "nina_set_camera_offset" => BuildEndpoint("equipment/camera/set-offset", argsDict, "offset", "offset"),
                 "nina_start_warming" => BuildWarmingEndpoint(argsDict),
                 
                 // Advanced Focuser
-                "nina_start_autofocus" => BuildAutofocusEndpoint(argsDict),
+                "nina_start_autofocus" => "equipment/focuser/auto-focus",
                 "nina_cancel_autofocus" => "equipment/focuser/auto-focus?cancel=true",
-                "nina_get_autofocus_status" => "equipment/focuser/auto-focus",
                 "nina_get_last_autofocus" => "equipment/focuser/last-af",
-                "nina_halt_focuser" => "equipment/focuser/stop-move", // using stop-move as halt is not explicitly in docs for focuser
+                "nina_halt_focuser" => "equipment/focuser/stop-move",
                 
                 // Sequence
                 "nina_sequence_start" => BuildSequenceStartEndpoint(argsDict),
                 "nina_sequence_stop" => "sequence/stop",
                 "nina_sequence_load" => BuildEndpoint("sequence/load", argsDict, "sequenceName", "sequenceName"),
                 "nina_sequence_json" => "sequence/json",
+                "nina_sequence_state" => "sequence/state",
+                "nina_sequence_edit" => BuildSequenceEditEndpoint(argsDict),
+                "nina_sequence_skip" => BuildEndpoint("sequence/skip", argsDict, "type", "type"),
+                "nina_sequence_reset" => "sequence/reset",
+                "nina_sequence_list_available" => "sequence/list-available",
+                "nina_sequence_set_target" => BuildSequenceSetTargetEndpoint(argsDict),
+                
+                // Profile
+                "nina_show_profile" => BuildShowProfileEndpoint(argsDict),
+                "nina_change_profile_value" => BuildChangeProfileEndpoint(argsDict),
+                "nina_switch_profile" => BuildEndpoint("profile/switch", argsDict, "profileid", "profileid"),
+                "nina_get_horizon" => "profile/horizon",
+                
+                // Event History
+                "nina_get_event_history" => "event-history",
+                
+                // Image
+                "nina_get_image" => BuildGetImageEndpoint(argsDict),
+                "nina_get_thumbnail" => BuildGetThumbnailEndpoint(argsDict),
                 
                 // Plate Solving
                 "nina_platesolve_capsolve" => BuildPlateSolveEndpoint("plate-solve/capsolve", argsDict),
@@ -1566,10 +1973,13 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 // Framing Assistant
                 "nina_get_framingassistant_info" => "framing/info",
                 "nina_set_framingassistant_source" => BuildEndpoint("framing/set-source", argsDict, "source", "source"),
-                "nina_framingassistant_slew" => "framing/slew",
+                "nina_set_framingassistant_coordinates" => BuildFramingCoordinatesEndpoint(argsDict),
+                "nina_set_framingassistant_rotation" => BuildEndpoint("framing/set-rotation", argsDict, "rotation", "rotation"),
+                "nina_determine_framingassistant_rotation" => BuildDetermineRotationEndpoint(argsDict),
+                "nina_framingassistant_slew" => BuildFramingSlewEndpoint(argsDict),
+                "nina_moon_separation" => BuildMoonSeparationEndpoint(argsDict),
                 
                 // Utility
-                "nina_time_now" => "application/time",
                 "nina_wait" => "",  // Special handling needed - this is a delay, not an API call
                 
                 _ => ""
@@ -1578,30 +1988,17 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
 
         private string BuildAddFilterEndpoint(Dictionary<string, object> args)
         {
-            var parameters = new List<string>();
-            
-            if (args.TryGetValue("position", out var position))
-                parameters.Add($"position={position}");
-            if (args.TryGetValue("name", out var name))
-                parameters.Add($"name={Uri.EscapeDataString(name.ToString()!)}");
-            if (args.TryGetValue("autoFocusExposure", out var autoFocusExposure))
-                parameters.Add($"autoFocusExposure={autoFocusExposure}");
-            if (args.TryGetValue("flatWizardExposure", out var flatWizardExposure))
-                parameters.Add($"flatWizardExposure={flatWizardExposure}");
-            if (args.TryGetValue("focusOffset", out var focusOffset))
-                parameters.Add($"focusOffset={focusOffset}");
-                
-            return parameters.Count > 0 ? $"equipment/filterwheel/add-filter?{string.Join("&", parameters)}" : "equipment/filterwheel/add-filter";
+            return "equipment/filterwheel/add-filter";
         }
 
         private string BuildRotatorRangeEndpoint(Dictionary<string, object> args)
         {
             var parameters = new List<string>();
             
-            if (args.TryGetValue("min", out var min))
-                parameters.Add($"min={min}");
-            if (args.TryGetValue("max", out var max))
-                parameters.Add($"max={max}");
+            if (args.TryGetValue("range", out var range))
+                parameters.Add($"range={Uri.EscapeDataString(range.ToString() ?? "")}");
+            if (args.TryGetValue("rangeStartPosition", out var startPos))
+                parameters.Add($"rangeStartPosition={startPos}");
                 
             return parameters.Count > 0 ? $"equipment/rotator/set-mechanical-range?{string.Join("&", parameters)}" : "equipment/rotator/set-mechanical-range";
         }
@@ -1623,9 +2020,19 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 parameters.Add($"duration={duration}");
             if (args.TryGetValue("gain", out var gain))
                 parameters.Add($"gain={gain}");
-            if (args.TryGetValue("download", out var download) && Convert.ToBoolean(download))
+
+            bool wantsSolve = args.TryGetValue("solve", out var solve) && Convert.ToBoolean(solve);
+            bool wantsDownload = args.TryGetValue("download", out var download) && Convert.ToBoolean(download);
+
+            if (wantsDownload)
             {
                 parameters.Add("stream=true");
+                parameters.Add("waitForResult=true");
+            }
+            else if (wantsSolve)
+            {
+                // When plate solving, we must wait for the result even without downloading the image
+                parameters.Add("omitImage=true");
                 parameters.Add("waitForResult=true");
             }
             else
@@ -1633,7 +2040,8 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 parameters.Add("omitImage=true");
                 parameters.Add("waitForResult=false");
             }
-            if (args.TryGetValue("solve", out var solve) && Convert.ToBoolean(solve))
+
+            if (wantsSolve)
                 parameters.Add("solve=true");
                 
             return $"equipment/camera/capture?{string.Join("&", parameters)}";
@@ -1665,12 +2073,58 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             if (args.TryGetValue("dec", out var dec))
                 parameters.Add($"dec={dec}");
             
-            var waitForCompletion = true;
-            if (args.TryGetValue("wait_for_completion", out var wait))
-                waitForCompletion = Convert.ToBoolean(wait);
-            parameters.Add($"waitForResult={waitForCompletion.ToString().ToLower()}");
+            // Default waitForResult to true
+            var waitForResult = true;
+            if (args.TryGetValue("waitForResult", out var wait))
+                waitForResult = Convert.ToBoolean(wait);
+            else if (args.TryGetValue("wait_for_completion", out var waitLegacy))
+                waitForResult = Convert.ToBoolean(waitLegacy);
+            parameters.Add($"waitForResult={waitForResult.ToString().ToLower()}");
+            
+            if (args.TryGetValue("center", out var center) && Convert.ToBoolean(center))
+                parameters.Add("center=true");
+            if (args.TryGetValue("rotate", out var rotate) && Convert.ToBoolean(rotate))
+                parameters.Add("rotate=true");
+            if (args.TryGetValue("rotationAngle", out var rotAngle))
+                parameters.Add($"rotationAngle={rotAngle}");
             
             return $"equipment/mount/slew?{string.Join("&", parameters)}";
+        }
+
+        private string BuildSyncMountEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("ra", out var ra))
+            {
+                // Convert RA from hours to degrees (1 hour = 15 degrees)
+                var raHours = Convert.ToDouble(ra);
+                var raDegrees = raHours * 15.0;
+                parameters.Add($"ra={raDegrees}");
+            }
+            if (args.TryGetValue("dec", out var dec))
+                parameters.Add($"dec={dec}");
+                
+            return parameters.Count > 0 ? $"equipment/mount/sync?{string.Join("&", parameters)}" : "equipment/mount/sync";
+        }
+
+        private string BuildNinaVersionEndpoint(Dictionary<string, object> args)
+        {
+            if (args.TryGetValue("friendly", out var friendly) && Convert.ToBoolean(friendly))
+                return "version/nina?friendly=true";
+            return "version/nina";
+        }
+
+        private string BuildLogsEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("lineCount", out var lineCount))
+                parameters.Add($"lineCount={lineCount}");
+            if (args.TryGetValue("level", out var level) && level != null)
+                parameters.Add($"level={Uri.EscapeDataString(level.ToString() ?? "")}");
+                
+            return $"application/logs?{string.Join("&", parameters)}";
         }
 
         private string BuildTrackingEndpoint(Dictionary<string, object> args)
@@ -1693,52 +2147,50 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
 
         private string BuildFocuserMoveEndpoint(Dictionary<string, object> args)
         {
-            var parameters = new List<string>();
-            
             if (args.TryGetValue("position", out var pos))
-                parameters.Add($"position={pos}");
-            if (args.TryGetValue("relative", out var rel) && Convert.ToBoolean(rel))
-                parameters.Add("relative=true");
-                
-            return $"equipment/focuser/move?{string.Join("&", parameters)}";
+                return $"equipment/focuser/move?position={pos}";
+            return "equipment/focuser/move";
         }
 
         private string BuildImageHistoryEndpoint(Dictionary<string, object> args)
         {
-            var parameters = new List<string> { "all=true" };
+            var parameters = new List<string>();
             
-            if (args.TryGetValue("limit", out var limit))
-                parameters.Add($"limit={limit}");
-            if (args.TryGetValue("offset", out var offset))
-                parameters.Add($"offset={offset}");
+            if (args.TryGetValue("all", out var all))
+                parameters.Add($"all={all.ToString()?.ToLower()}");
+            else
+                parameters.Add("all=true");
+            if (args.TryGetValue("index", out var index))
+                parameters.Add($"index={index}");
+            if (args.TryGetValue("count", out var count))
+                parameters.Add($"count={count}");
+            if (args.TryGetValue("imageType", out var imageType))
+                parameters.Add($"imageType={Uri.EscapeDataString(imageType.ToString() ?? "")}");
                 
             return $"image-history?{string.Join("&", parameters)}";
         }
 
-        private string BuildFlatsEndpoint(Dictionary<string, object> args)
+        private string BuildFlatsEndpoint(string baseEndpoint, Dictionary<string, object> args)
         {
             var parameters = new List<string>();
             
-            if (args.TryGetValue("count", out var count))
-                parameters.Add($"count={count}");
-            if (args.TryGetValue("binning", out var binning))
-                parameters.Add($"binning={binning}");
-            if (args.TryGetValue("gain", out var gain))
-                parameters.Add($"gain={gain}");
+            string[] flatParams = { "count", "minExposure", "maxExposure", "histogramMean", "meanTolerance",
+                                    "dither", "filterId", "binning", "gain", "offset", "keepClosed",
+                                    "exposureTime", "minBrightness", "maxBrightness", "brightness" };
+            foreach (var param in flatParams)
+            {
+                if (args.TryGetValue(param, out var value))
+                    parameters.Add($"{param}={Uri.EscapeDataString(value.ToString() ?? "")}");
+            }
                 
-            return parameters.Count > 0 ? $"flats/start?{string.Join("&", parameters)}" : "flats/start";
+            return parameters.Count > 0 ? $"{baseEndpoint}?{string.Join("&", parameters)}" : baseEndpoint;
         }
 
         private string BuildRotatorMoveEndpoint(Dictionary<string, object> args)
         {
-            var parameters = new List<string>();
-            
             if (args.TryGetValue("position", out var pos))
-                parameters.Add($"position={pos}");
-            if (args.TryGetValue("relative", out var rel) && Convert.ToBoolean(rel))
-                parameters.Add("relative=true");
-                
-            return $"equipment/rotator/move?{string.Join("&", parameters)}";
+                return $"equipment/rotator/move?position={pos}";
+            return "equipment/rotator/move";
         }
 
         private string BuildSwitchEndpoint(Dictionary<string, object> args)
@@ -1765,12 +2217,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
 
         private string BuildAutofocusEndpoint(Dictionary<string, object> args)
         {
-            var parameters = new List<string>();
-            
-            if (args.TryGetValue("method", out var method))
-                parameters.Add($"method={method}");
-                
-            return parameters.Count > 0 ? $"equipment/focuser/auto-focus?{string.Join("&", parameters)}" : "equipment/focuser/auto-focus";
+            return "equipment/focuser/auto-focus";
         }
 
         private string BuildSequenceStartEndpoint(Dictionary<string, object> args)
@@ -1790,16 +2237,154 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             return parameters.Count > 0 ? $"{baseEndpoint}?{string.Join("&", parameters)}" : baseEndpoint;
         }
 
+        private string BuildFramingCoordinatesEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("ra", out var ra))
+            {
+                // API expects RAangle in degrees, input is in hours (0-24)
+                var raHours = Convert.ToDouble(ra);
+                var raDegrees = raHours * 15.0;
+                parameters.Add($"RAangle={raDegrees}");
+            }
+            if (args.TryGetValue("dec", out var dec))
+                parameters.Add($"DecAngle={dec}");
+                
+            return $"framing/set-coordinates?{string.Join("&", parameters)}";
+        }
+
+        private string BuildFramingSlewEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("slew_option", out var slewOption) && slewOption != null)
+                parameters.Add($"slew_option={Uri.EscapeDataString(slewOption.ToString() ?? "")}");
+            if (args.TryGetValue("waitForResult", out var waitForResult))
+                parameters.Add($"waitForResult={waitForResult.ToString()?.ToLower()}");
+                
+            return parameters.Count > 0 ? $"framing/slew?{string.Join("&", parameters)}" : "framing/slew";
+        }
+
+        private string BuildDetermineRotationEndpoint(Dictionary<string, object> args)
+        {
+            if (args.TryGetValue("waitForResult", out var waitForResult))
+                return $"framing/determine-rotation?waitForResult={waitForResult.ToString()?.ToLower()}";
+            return "framing/determine-rotation";
+        }
+
+        private string BuildMoonSeparationEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("ra", out var ra))
+            {
+                // API expects RA in degrees, input is in hours (0-24)
+                var raHours = Convert.ToDouble(ra);
+                var raDegrees = raHours * 15.0;
+                parameters.Add($"ra={raDegrees}");
+            }
+            if (args.TryGetValue("dec", out var dec))
+                parameters.Add($"dec={dec}");
+                
+            return $"astro-util/moon-separation?{string.Join("&", parameters)}";
+        }
+
         private string BuildPlateSolveCenterEndpoint(Dictionary<string, object> args)
         {
             var parameters = new List<string>();
             
             if (args.TryGetValue("ra", out var ra))
-                parameters.Add($"ra={ra}");
+            {
+                // Convert RA from hours to degrees (1 hour = 15 degrees), consistent with BuildSlewEndpoint
+                var raHours = Convert.ToDouble(ra);
+                var raDegrees = raHours * 15.0;
+                parameters.Add($"ra={raDegrees}");
+            }
             if (args.TryGetValue("dec", out var dec))
                 parameters.Add($"dec={dec}");
                 
             return $"plate-solve/center?{string.Join("&", parameters)}";
+        }
+
+        private string BuildDomeSlewEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("azimuth", out var azimuth))
+                parameters.Add($"azimuth={azimuth}");
+            if (args.TryGetValue("waitToFinish", out var waitToFinish))
+                parameters.Add($"waitToFinish={waitToFinish.ToString()?.ToLower()}");
+                
+            return parameters.Count > 0 ? $"equipment/dome/slew?{string.Join("&", parameters)}" : "equipment/dome/slew";
+        }
+
+        private string BuildShowProfileEndpoint(Dictionary<string, object> args)
+        {
+            if (args.TryGetValue("active", out var active))
+                return $"profile/show?active={active.ToString()?.ToLower()}";
+            return "profile/show";
+        }
+
+        private string BuildChangeProfileEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("settingpath", out var settingpath))
+                parameters.Add($"settingpath={Uri.EscapeDataString(settingpath.ToString() ?? "")}");
+            if (args.TryGetValue("newValue", out var newValue))
+                parameters.Add($"newValue={Uri.EscapeDataString(newValue.ToString() ?? "")}");
+                
+            return $"profile/change-value?{string.Join("&", parameters)}";
+        }
+
+        private string BuildSequenceEditEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("path", out var path))
+                parameters.Add($"path={Uri.EscapeDataString(path.ToString() ?? "")}");
+            if (args.TryGetValue("value", out var value))
+                parameters.Add($"value={Uri.EscapeDataString(value.ToString() ?? "")}");
+                
+            return $"sequence/edit?{string.Join("&", parameters)}";
+        }
+
+        private string BuildSequenceSetTargetEndpoint(Dictionary<string, object> args)
+        {
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("name", out var name))
+                parameters.Add($"name={Uri.EscapeDataString(name.ToString() ?? "")}");
+            if (args.TryGetValue("ra", out var ra))
+                parameters.Add($"ra={ra}");
+            if (args.TryGetValue("dec", out var dec))
+                parameters.Add($"dec={dec}");
+            if (args.TryGetValue("rotation", out var rotation))
+                parameters.Add($"rotation={rotation}");
+            if (args.TryGetValue("index", out var index))
+                parameters.Add($"index={index}");
+                
+            return $"sequence/set-target?{string.Join("&", parameters)}";
+        }
+
+        private string BuildGetImageEndpoint(Dictionary<string, object> args)
+        {
+            var index = args.TryGetValue("index", out var idx) ? idx.ToString() : "0";
+            var parameters = new List<string>();
+            
+            if (args.TryGetValue("resize", out var resize))
+                parameters.Add($"resize={resize}");
+            if (args.TryGetValue("quality", out var quality))
+                parameters.Add($"quality={quality}");
+                
+            return parameters.Count > 0 ? $"image/{index}?{string.Join("&", parameters)}" : $"image/{index}";
+        }
+
+        private string BuildGetThumbnailEndpoint(Dictionary<string, object> args)
+        {
+            var index = args.TryGetValue("index", out var idx) ? idx.ToString() : "0";
+            return $"image/thumbnail/{index}";
         }
 
         /// <summary>

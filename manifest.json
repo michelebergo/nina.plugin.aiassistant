@@ -1,7 +1,7 @@
 {
   "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Version": "2.2.0.0",
+  "Version": "2.3.0.0",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -24,6 +24,20 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.3.0.0",
+      "Date": "2026-03-03",
+      "Changes": [
+        "Profile Management: View, modify, and switch NINA profiles via conversation",
+        "Extended Sequence Control: State, edit, skip, reset, list, and set-target tools",
+        "Image Retrieval: Get captured images and thumbnails by index",
+        "Event History: Review equipment events and capture history",
+        "5 Flat Frame Tools: skyflat, auto-brightness, auto-exposure, trained-dark-flat, trained-flat",
+        "Added 7 missing equipment listing/status tools",
+        "Fixed 13 wrong API parameter names and schemas causing silent failures",
+        "Removed 6 tools mapped to non-existent API endpoints"
+      ]
+    },
     {
       "Version": "2.2.0.0",
       "Date": "2026-03-01",

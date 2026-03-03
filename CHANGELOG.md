@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0.0] - 2026-03-03
+
+### Added
+- 🔭 **Profile Management Tools** - New `nina_show_profile`, `nina_change_profile_value`, `nina_switch_profile`, and `nina_get_horizon` tools for viewing and modifying NINA profiles via conversation
+- 📋 **Extended Sequence Control** - New `nina_sequence_state`, `nina_sequence_edit`, `nina_sequence_skip`, `nina_sequence_reset`, `nina_sequence_list_available`, and `nina_sequence_set_target` tools for full sequence management
+- 📸 **Image Retrieval Tools** - New `nina_get_image` and `nina_get_thumbnail` tools to retrieve captured images by index
+- 📜 **Event History** - New `nina_get_event_history` tool to review equipment events, captures, and errors
+- 🌤️ **Sky Flat Workflows** - 5 new specialized flat frame tools: `nina_skyflat`, `nina_auto_brightness_flat`, `nina_auto_exposure_flat`, `nina_trained_dark_flat`, `nina_trained_flat` with full parameter support
+- 🔧 **Missing Equipment Tools** - Added `nina_list_camera_devices`, `nina_list_dome_devices`, `nina_home_dome`, `nina_list_filterwheel_devices`, `nina_list_guider_devices`, `nina_get_guider_graph`, `nina_get_flats_status`
+
+### Fixed
+- 🐛 **Dome Follow Parameter** - Fixed `nina_set_dome_follow` sending wrong parameter name (`enable` → `enabled`)
+- 🐛 **Flat Panel Light Parameter** - Fixed `nina_set_flatpanel_light` sending wrong parameter name (`power` → `on`)
+- 🐛 **Rotator Reverse Parameter** - Fixed `nina_set_rotator_reverse` sending wrong parameter name (`enabled` → `reverseDirection`)
+- 🐛 **Filter Operations** - Fixed `nina_remove_filter` and `nina_get_filter_info` using wrong parameter (`position` → `filterId`)
+- 🐛 **Dome Sync** - Fixed `nina_sync_dome` sending unsupported `azimuth` parameter (API accepts no parameters)
+- 🐛 **Dome Slew** - Added missing `waitToFinish` parameter to `nina_slew_dome`
+- 🐛 **Focuser Move** - Removed non-existent `relative` parameter from `nina_move_focuser`
+- 🐛 **Rotator Move** - Removed non-existent `relative` parameter from `nina_move_rotator`
+- 🐛 **Rotator Range** - Fixed `nina_set_rotator_mechanical_range` to use correct `range` enum (full/half/quarter) + `rangeStartPosition` instead of incorrect `min`/`max`
+- 🐛 **Autofocus** - Fixed `nina_start_autofocus` removing non-existent `method` parameter
+- 🐛 **Image History** - Fixed `nina_get_image_history` to use correct API parameters (`all`/`index`/`count`/`imageType`) instead of wrong `limit`/`offset`
+- 🐛 **Add Filter** - Fixed `nina_add_filter` to send no parameters (API accepts none)
+- 🐛 **Flats Endpoint** - Replaced broken `nina_start_flats` (mapped to non-existent `flats/start`) with 5 correct flat-type endpoints
+
+### Removed
+- ❌ `nina_calibrate_guider` - Removed (endpoint doesn't exist; use `nina_start_guiding` with `calibrate=true`)
+- ❌ `nina_sync_rotator` - Removed (endpoint `rotator/sync` doesn't exist in API)
+- ❌ `nina_set_camera_gain` - Removed (endpoint `camera/set-gain` doesn't exist; gain is set via capture)
+- ❌ `nina_set_camera_offset` - Removed (endpoint `camera/set-offset` doesn't exist; offset is set via capture)
+- ❌ `nina_get_autofocus_status` - Removed (mapped to `auto-focus` which would inadvertently start autofocus)
+- ❌ `nina_start_flats` - Replaced with 5 specific flat-type tools matching the API
+
+---
+
 ## [2.2.0.0] - 2026-03-01
 
 ### Added
