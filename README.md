@@ -8,8 +8,8 @@
 
 ## Features
 
-- **Multi-Provider AI**: GitHub Models (free), OpenAI, Anthropic Claude, Google Gemini, Ollama (local)
-- **MCP Equipment Control**: Natural language control of cameras, mounts, focusers, filter wheels, guiders, dome
+- **Multi-Provider AI**: GitHub Models (free), OpenAI, Anthropic Claude, Google Gemini, Ollama (local), Mistral AI
+- **MCP Equipment Control**: Natural language control of cameras, mounts, focusers, filter wheels, guiders, dome. Now supports Anthropic, Google, AND Ollama providers
 - **Dynamic Model Discovery**: Automatic detection of latest AI models from each provider
 - **Image Analysis**: FITS header reading, HFR/FWHM monitoring, star detection, quality assessment
 - **Dockable Chat Panel**: Integrated AI chat within NINA's imaging tab
@@ -66,7 +66,8 @@ nina.plugin.aiassistant/
 │       ├── AnthropicProvider.cs  # Claude with MCP tools
 │       ├── GitHubModelsProvider.cs
 │       ├── GoogleProvider.cs
-│       ├── OllamaProvider.cs
+│       ├── MistralProvider.cs     # Mistral AI
+│       ├── OllamaProvider.cs      # Ollama with MCP tools
 │       └── OpenAIProvider.cs
 ├── MCP/
 │   └── ExternalMCPClient.cs      # External MCP server support

@@ -47,7 +47,10 @@ namespace NINA.Plugin.AIAssistant
         public bool IsAnthropicSelected => SelectedProviderInternal == AIProviderType.Anthropic;
         public bool IsGoogleSelected => SelectedProviderInternal == AIProviderType.Google;
         public bool IsOllamaSelected => SelectedProviderInternal == AIProviderType.Ollama;
-        public bool IsMCPProviderSelected => SelectedProviderInternal == AIProviderType.Anthropic || SelectedProviderInternal == AIProviderType.Google;
+        public bool IsMistralSelected => SelectedProviderInternal == AIProviderType.Mistral;
+        public bool IsMCPProviderSelected => SelectedProviderInternal == AIProviderType.Anthropic || 
+                                              SelectedProviderInternal == AIProviderType.Google || 
+                                              SelectedProviderInternal == AIProviderType.Ollama;
 
         [ImportingConstructor]
         public AIAssistantPlugin(IProfileService profileService, 
@@ -138,6 +141,12 @@ namespace NINA.Plugin.AIAssistant
                     Endpoint = OllamaEndpoint ?? "http://localhost:11434",
                     ModelId = OllamaModelId ?? "llama3.2"
                 },
+                AIProviderType.Mistral => new AIProviderConfig
+                {
+                    Provider = AIProviderType.Mistral,
+                    ApiKey = MistralApiKey,
+                    ModelId = MistralModelId ?? "mistral-large-latest"
+                },
                 _ => null
             };
         }
@@ -191,6 +200,7 @@ namespace NINA.Plugin.AIAssistant
                     AIProviderType.Anthropic => AnthropicModelId,
                     AIProviderType.Google => GoogleModelId,
                     AIProviderType.Ollama => OllamaModelId,
+                    AIProviderType.Mistral => MistralModelId,
                     _ => "Unknown Model"
                 };
             }
@@ -336,6 +346,34 @@ namespace NINA.Plugin.AIAssistant
             set
             {
                 Settings.Default.OllamaModelId = SanitizeModelId(value);
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
+
+        #endregion
+
+        #region Mistral Settings
+
+        public string? MistralApiKey
+        {
+            get => Settings.Default.MistralApiKey;
+            set
+            {
+                Settings.Default.MistralApiKey = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Mistral)
+                    _ = InitializeAIProviderAsync();
+            }
+        }
+
+        public string? MistralModelId
+        {
+            get => SanitizeModelId(Settings.Default.MistralModelId ?? "mistral-large-latest");
+            set
+            {
+                Settings.Default.MistralModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
             }

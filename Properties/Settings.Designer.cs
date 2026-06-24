@@ -223,5 +223,30 @@ namespace NINA.Plugin.AIAssistant.Properties {
                 this["ExternalMCPScriptPath"] = value;
             }
         }
+
+        // Mistral AI Settings
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string MistralApiKey {
+            get {
+                return ((string)(this["MistralApiKey"]));
+            }
+            set {
+                this["MistralApiKey"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("mistral-large-latest")]
+        public string MistralModelId {
+            get {
+                return ((string)(this["MistralModelId"]));
+            }
+            set {
+                this["MistralModelId"] = value;
+            }
+        }
     }
 }

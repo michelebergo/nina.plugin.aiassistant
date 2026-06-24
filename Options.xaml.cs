@@ -79,9 +79,11 @@ namespace NINA.Plugin.AIAssistant
                 AIProviderType.Anthropic => "Claude AI (enable MCP for equipment control)",
                 AIProviderType.Google when plugin.MCPEnabled => "✓ MCP-enabled for NINA control",
                 AIProviderType.Google => "Google Gemini (enable MCP for equipment control)",
+                AIProviderType.Ollama when plugin.MCPEnabled => "✓ MCP-enabled for NINA control",
+                AIProviderType.Ollama => "Local AI models (enable MCP for equipment control)",
                 AIProviderType.GitHub => "Using GitHub-hosted models",
                 AIProviderType.OpenAI => "Using OpenAI API",
-                AIProviderType.Ollama => "Local AI models",
+                AIProviderType.Mistral => "Using Mistral AI API",
                 _ => ""
             };
             statusText.Text = status;
@@ -579,6 +581,103 @@ namespace NINA.Plugin.AIAssistant
 
         #endregion
 
+        #region Mistral Token Handlers
+
+        private async void MistralToken_Changed(object sender, RoutedEventArgs e)
+        {
+            var passwordBox = sender as PasswordBox;
+            if (passwordBox?.DataContext is AIAssistantPlugin plugin)
+            {
+                plugin.MistralApiKey = passwordBox.Password;
+                // Auto-reload models when API key changes
+                if (!string.IsNullOrWhiteSpace(plugin.MistralApiKey))
+                {
+                    await LoadModelsForProvider(AIProviderType.Mistral, plugin);
+                }
+            }
+            ClearTestResult("MistralTestResult", sender);
+        }
+
+        private void MistralToken_Loaded(object sender, RoutedEventArgs e)
+        {
+            var passwordBox = sender as PasswordBox;
+            if (passwordBox?.DataContext is AIAssistantPlugin plugin && !string.IsNullOrEmpty(plugin.MistralApiKey))
+            {
+                passwordBox.Password = plugin.MistralApiKey;
+            }
+        }
+
+        private void GetMistralKey_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://console.mistral.ai/api-keys/",
+                UseShellExecute = true
+            });
+        }
+
+        private async void TestMistralKey_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.DataContext is not AIAssistantPlugin plugin) return;
+
+            var resultTextBlock = FindTextBlock("MistralTestResult", button);
+            if (resultTextBlock == null) return;
+
+            if (string.IsNullOrWhiteSpace(plugin.MistralApiKey))
+            {
+                ShowResult(resultTextBlock, "⚠️ Please enter an API key first", Colors.Orange);
+                return;
+            }
+
+            button.IsEnabled = false;
+            ShowResult(resultTextBlock, "🔄 Testing API key...", Colors.White);
+
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", plugin.MistralApiKey);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                var response = await client.GetAsync("https://api.mistral.ai/v1/models");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowResult(resultTextBlock, "✅ Mistral API key is valid!", Colors.LightGreen);
+                }
+                else
+                {
+                    ShowResult(resultTextBlock, $"❌ Invalid API key: {response.StatusCode}", Colors.Salmon);
+                }
+            }
+            catch (Exception ex)
+            {
+                HandleApiError(resultTextBlock, ex);
+            }
+            finally
+            {
+                button.IsEnabled = true;
+            }
+        }
+
+        private void MistralModel_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            {
+                var models = AvailableModels.GetModels(AIProviderType.Mistral);
+                comboBox.Items.Clear();
+                foreach (var model in models)
+                {
+                    var item = new ComboBoxItem { Content = model.Id };
+                    if (model.Id == plugin.MistralModelId)
+                        item.IsSelected = true;
+                    comboBox.Items.Add(item);
+                }
+            }
+        }
+
+        #endregion
+
         #region MCP Handlers
 
         private async void TestMCPConnection_Click(object sender, RoutedEventArgs e)
@@ -736,6 +835,20 @@ namespace NINA.Plugin.AIAssistant
                             ModelId = currentModel,
                             Endpoint = plugin.OllamaEndpoint
                         });
+                        break;
+
+                    case AIProviderType.Mistral:
+                        modelComboBox = FindControl<ComboBox>("MistralModelComboBox");
+                        currentModel = plugin.MistralModelId;
+                        if (!string.IsNullOrWhiteSpace(plugin.MistralApiKey))
+                        {
+                            provider = new MistralProvider();
+                            await provider.InitializeAsync(new AIProviderConfig
+                            {
+                                ApiKey = plugin.MistralApiKey,
+                                ModelId = currentModel
+                            });
+                        }
                         break;
                 }
 

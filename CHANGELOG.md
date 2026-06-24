@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0.0] - 2026-06-24
+
+### Added
+- 🤖 **MCP Support for Ollama** - Local AI models can now control NINA equipment via MCP without paid API keys. Requires a tool-capable Ollama model (e.g., Llama 3.1+, Qwen 2.5+). Uses Ollama's native tool-calling API. (Closes #3)
+- 🧠 **Mistral AI Provider** - New 6th AI provider supporting Mistral Large, Medium, Small, Open Mistral 7B, Open Mixtral 8x7B, and Codestral. Uses Mistral's OpenAI-compatible API with dynamic model discovery. (Closes #2)
+
+### Changed
+- MCP configuration section in Options now visible for Anthropic, Google, AND Ollama providers
+- Provider count updated from 5 to 6
+- Ollama timeout increased from 5 to 10 minutes to accommodate tool-calling iterations
+- Ollama provider display name updated to reflect MCP capability
+
+---
+
 ## [2.3.0.0] - 2026-03-03
 
 ### Added

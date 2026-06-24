@@ -25,7 +25,8 @@ namespace NINA.Plugin.AIAssistant.AI
                 { AIProviderType.OpenAI, new OpenAIProvider() },
                 { AIProviderType.Anthropic, new AnthropicProvider() },
                 { AIProviderType.Google, new GoogleProvider() },
-                { AIProviderType.Ollama, new OllamaProvider() }
+                { AIProviderType.Ollama, new OllamaProvider() },
+                { AIProviderType.Mistral, new MistralProvider() }
             };
         }
 

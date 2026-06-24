@@ -30,7 +30,12 @@ namespace NINA.Plugin.AIAssistant.AI
         /// <summary>
         /// Ollama - Local models, completely free
         /// </summary>
-        Ollama
+        Ollama,
+
+        /// <summary>
+        /// Mistral - Mistral AI (OpenAI-compatible API)
+        /// </summary>
+        Mistral
     }
 
     /// <summary>
@@ -135,6 +140,15 @@ namespace NINA.Plugin.AIAssistant.AI
                     new() { Id = "phi3", DisplayName = "Phi-3", Provider = provider, IsFree = true, Description = "Microsoft, small" },
                     new() { Id = "gemma2", DisplayName = "Gemma 2", Provider = provider, IsFree = true, Description = "Google, local" },
                 },
+                AIProviderType.Mistral => new List<AIModelInfo>
+                {
+                    new() { Id = "mistral-large-latest", DisplayName = "Mistral Large", Provider = provider, IsFree = false, Description = "Most capable (default)" },
+                    new() { Id = "mistral-medium-latest", DisplayName = "Mistral Medium", Provider = provider, IsFree = false, Description = "Balanced" },
+                    new() { Id = "mistral-small-latest", DisplayName = "Mistral Small", Provider = provider, IsFree = false, Description = "Fast, affordable" },
+                    new() { Id = "open-mistral-7b", DisplayName = "Open Mistral 7B", Provider = provider, IsFree = false, Description = "Open source" },
+                    new() { Id = "open-mixtral-8x7b", DisplayName = "Open Mixtral 8x7B", Provider = provider, IsFree = false, Description = "Mixture of experts" },
+                    new() { Id = "codestral-latest", DisplayName = "Codestral", Provider = provider, IsFree = false, Description = "Code-focused" },
+                },
                 _ => new List<AIModelInfo>()
             };
         }
@@ -147,7 +161,8 @@ namespace NINA.Plugin.AIAssistant.AI
                 AIProviderType.OpenAI,
                 AIProviderType.Anthropic,
                 AIProviderType.Google,
-                AIProviderType.Ollama
+                AIProviderType.Ollama,
+                AIProviderType.Mistral
             };
         }
 
