@@ -4,6 +4,7 @@ using NINA.Core.Utility;
 using NINA.Plugin.AIAssistant.AI;
 using NINA.Plugin.AIAssistant.AI.MCP;
 using NINA.Plugin.AIAssistant.MCP;
+using NINA.Plugin.AIAssistant.Orchestrator;
 using NINA.Equipment.Interfaces.ViewModel;
 using NINA.WPF.Base.ViewModel;
 using NINA.Profile.Interfaces;
@@ -103,8 +104,87 @@ namespace NINA.Plugin.AIAssistant
             if (AIAssistantPlugin.Instance != null)
             {
                 AIAssistantPlugin.Instance.PropertyChanged += Plugin_PropertyChanged;
+                AIAssistantPlugin.Instance.OrchestratorSettingsChanged += Plugin_OrchestratorSettingsChanged;
+            }
+
+            // Phase 5 — wire the orchestrator status panel
+            InitializeOrchestratorVM();
+        }
+
+        #region Phase 5 — Orchestrator integration
+
+        private OrchestratorStatusViewModel? _orchestratorVM;
+        public OrchestratorStatusViewModel? OrchestratorVM
+        {
+            get => _orchestratorVM;
+            private set => SetProperty(ref _orchestratorVM, value);
+        }
+
+        public bool OrchestratorEnabled => AIAssistantPlugin.Instance?.OrchestratorEnabled == true;
+
+        private void InitializeOrchestratorVM()
+        {
+            var plugin = AIAssistantPlugin.Instance;
+            if (plugin == null) return;
+            if (!plugin.OrchestratorEnabled)
+            {
+                DisposeOrchestratorVM();
+                RaisePropertyChanged(nameof(OrchestratorEnabled));
+                return;
+            }
+            try
+            {
+                var vm = new OrchestratorStatusViewModel(plugin.OrchestratorUrl, plugin.OrchestratorPollIntervalSeconds);
+                vm.Start();
+                OrchestratorVM = vm;
+                RaisePropertyChanged(nameof(OrchestratorEnabled));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"AIChatVM: failed to initialize OrchestratorStatusViewModel: {ex.Message}");
             }
         }
+
+        private void DisposeOrchestratorVM()
+        {
+            try
+            {
+                OrchestratorVM?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"AIChatVM: error disposing OrchestratorVM: {ex.Message}");
+            }
+            OrchestratorVM = null;
+        }
+
+        private void Plugin_OrchestratorSettingsChanged(object? sender, EventArgs e)
+        {
+            var plugin = AIAssistantPlugin.Instance;
+            if (plugin == null) return;
+            if (!plugin.OrchestratorEnabled)
+            {
+                DisposeOrchestratorVM();
+                RaisePropertyChanged(nameof(OrchestratorEnabled));
+                return;
+            }
+            if (OrchestratorVM == null)
+            {
+                InitializeOrchestratorVM();
+            }
+            else
+            {
+                OrchestratorVM.Reconfigure(plugin.OrchestratorUrl, plugin.OrchestratorPollIntervalSeconds);
+            }
+        }
+
+        // Used internally for property-changed notifications on bool helpers.
+        private void RaisePropertyChanged(string propertyName)
+        {
+            OnPropertyChanged(propertyName);
+        }
+
+        #endregion
 
         private void Plugin_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {

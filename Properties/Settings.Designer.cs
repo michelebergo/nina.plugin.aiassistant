@@ -223,5 +223,43 @@ namespace NINA.Plugin.AIAssistant.Properties {
                 this["ExternalMCPScriptPath"] = value;
             }
         }
+
+        // ---- Phase 5: nina.autopilot orchestrator integration ----
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool OrchestratorEnabled {
+            get {
+                return ((bool)(this["OrchestratorEnabled"]));
+            }
+            set {
+                this["OrchestratorEnabled"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("http://127.0.0.1:8765")]
+        public string OrchestratorUrl {
+            get {
+                return ((string)(this["OrchestratorUrl"]));
+            }
+            set {
+                this["OrchestratorUrl"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int OrchestratorPollIntervalSeconds {
+            get {
+                return ((int)(this["OrchestratorPollIntervalSeconds"]));
+            }
+            set {
+                this["OrchestratorPollIntervalSeconds"] = value;
+            }
+        }
     }
 }
