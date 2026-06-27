@@ -175,6 +175,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 AIProviderType.Anthropic => "Anthropic Claude (Paid)",
                 AIProviderType.Google => "Google Gemini (Free tier)",
                 AIProviderType.Ollama => "Ollama (Local/Free)",
+                AIProviderType.Mistral => "Mistral AI (Paid)",
                 _ => provider.ToString()
             };
         }

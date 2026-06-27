@@ -108,6 +108,7 @@ namespace NINA.Plugin.AIAssistant
                         "OpenAIModelComboBox" => FindControl<TextBox>("OpenAICustomModelBox"),
                         "AnthropicModelComboBox" => FindControl<TextBox>("AnthropicCustomModelBox"),
                         "GoogleModelComboBox" => FindControl<TextBox>("GoogleCustomModelBox"),
+                        "MistralModelComboBox" => FindControl<TextBox>("MistralCustomModelBox"),
                         _ => null
                     };
                     

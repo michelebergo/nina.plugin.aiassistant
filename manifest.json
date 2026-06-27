@@ -1,7 +1,7 @@
 {
   "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Version": "2.4.0.0",
+  "Version": "2.4.0.1",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -25,6 +25,14 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.4.0.1",
+      "Date": "2026-06-27",
+      "Changes": [
+        "Fixed Mistral model dropdown not syncing selection to custom model textbox",
+        "Fixed Mistral provider display name showing raw enum instead of friendly name in GetProviderDisplayName"
+      ]
+    },
     {
       "Version": "2.4.0.0",
       "Date": "2026-06-24",
