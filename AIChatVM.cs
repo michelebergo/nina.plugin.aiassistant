@@ -8,8 +8,10 @@ using NINA.Equipment.Interfaces.ViewModel;
 using NINA.WPF.Base.ViewModel;
 using NINA.Profile.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.Composition;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -480,12 +482,26 @@ Your expertise includes:
 Keep responses concise but accurate. Use proper astrophotography terminology.";
                 }
 
+                // Build conversation history (multi-turn context): include the FULL prior conversation,
+                // skipping only the welcome message (first) and the current user message (last).
+                var history = new List<AIChatTurn>();
+                if (Messages.Count > 2)
+                {
+                    history = Messages
+                        .Skip(1)                          // skip the welcome message
+                        .Take(Messages.Count - 2)         // exclude the current user message (last)
+                        .Where(m => !m.IsError && (m.Role == "user" || m.Role == "assistant"))
+                        .Select(m => new AIChatTurn { Role = m.Role, Content = m.Content })
+                        .ToList();
+                }
+
                 var request = new AIRequest
                 {
                     Prompt = userMsg,
                     SystemPrompt = systemPrompt,
                     MaxTokens = 1024,
-                    Temperature = 0.7
+                    Temperature = 0.7,
+                    History = history
                 };
 
                 try

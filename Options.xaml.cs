@@ -160,6 +160,30 @@ namespace NINA.Plugin.AIAssistant
             }
         }
 
+        private async void OllamaModelCombo_DropDownOpened(object sender, EventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            {
+                await LoadModelsForProvider(AIProviderType.Ollama, plugin);
+            }
+        }
+
+        private async void RefreshOllamaModels_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is AIAssistantPlugin plugin)
+            {
+                await LoadModelsForProvider(AIProviderType.Ollama, plugin);
+            }
+        }
+
+        private async void OllamaEndpoint_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox && textBox.DataContext is AIAssistantPlugin plugin)
+            {
+                await LoadModelsForProvider(AIProviderType.Ollama, plugin);
+            }
+        }
+
         #endregion
 
         #region GitHub Token Handlers

@@ -236,6 +236,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.GitHubModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.GitHub)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -264,6 +266,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.OpenAIModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.OpenAI)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -292,6 +296,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.AnthropicModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Anthropic)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -320,6 +326,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.GoogleModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Google)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -348,6 +356,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.OllamaModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Ollama)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -376,6 +386,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.MistralModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Mistral)
+                    _ = InitializeAIProviderAsync();
             }
         }
 

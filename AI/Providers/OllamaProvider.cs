@@ -128,14 +128,21 @@ namespace NINA.Plugin.AIAssistant.AI
             var modelId = _config.ModelId ?? "llama3.2";
             var systemPrompt = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
 
+            var messages = new List<object>
+            {
+                new { role = "system", content = systemPrompt }
+            };
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    messages.Add(new { role = turn.Role, content = turn.Content });
+            }
+            messages.Add(new { role = "user", content = request.Prompt });
+
             var requestBody = new
             {
                 model = modelId,
-                messages = new[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = request.Prompt }
-                },
+                messages,
                 stream = false,
                 options = new
                 {
@@ -258,9 +265,14 @@ namespace NINA.Plugin.AIAssistant.AI
 
             var messages = new List<object>
             {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = request.Prompt }
+                new { role = "system", content = systemPrompt }
             };
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    messages.Add(new { role = turn.Role, content = turn.Content });
+            }
+            messages.Add(new { role = "user", content = request.Prompt });
 
             var allToolResults = new List<string>();
             int iterations = 0;

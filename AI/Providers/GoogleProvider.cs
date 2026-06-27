@@ -129,6 +129,14 @@ namespace NINA.Plugin.AIAssistant.AI
             var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
             var systemInstruction = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
 
+            var contents = new List<object>();
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    contents.Add(new { role = turn.Role == "assistant" ? "model" : "user", parts = new[] { new { text = turn.Content } } });
+            }
+            contents.Add(new { role = "user", parts = new[] { new { text = request.Prompt } } });
+
             var requestBody = new
             {
                 system_instruction = new
@@ -138,16 +146,7 @@ namespace NINA.Plugin.AIAssistant.AI
                         new { text = systemInstruction }
                     }
                 },
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = request.Prompt }
-                        }
-                    }
-                },
+                contents,
                 generationConfig = new
                 {
                     temperature = request.Temperature,
@@ -217,7 +216,9 @@ namespace NINA.Plugin.AIAssistant.AI
                             {
                                 Properties = propDict,
                                 Required = tool["inputSchema"]?["required"]?.ToObject<List<string>>() ?? new List<string>()
-                            }
+                            },
+                            // Keep the full original schema so Gemini gets valid array 'items', nested objects, etc.
+                            RawInputSchema = (tool["inputSchema"] as JObject)?.DeepClone() as JObject
                         };
                         allTools.Add(mcpTool);
                     }
@@ -236,19 +237,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 name = t.Name,
                 description = t.Description,
-                parameters = new
-                {
-                    type = "object",
-                    properties = t.InputSchema.Properties.ToDictionary(
-                        p => p.Key,
-                        p => new 
-                        { 
-                            type = p.Value.Type, 
-                            description = p.Value.Description 
-                        }
-                    ),
-                    required = t.InputSchema.Required
-                }
+                parameters = BuildGeminiParameters(t)
             }).ToList();
 
             var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
@@ -256,14 +245,17 @@ namespace NINA.Plugin.AIAssistant.AI
             Logger.Debug($"GoogleProvider: Using system prompt: {systemInstruction.Substring(0, Math.Min(100, systemInstruction.Length))}...");
             
             var allToolResults = new List<string>();
-            var contents = new List<object>
+            var contents = new List<object>();
+            if (request.History != null)
             {
-                new
-                {
-                    role = "user",
-                    parts = new[] { new { text = request.Prompt } }
-                }
-            };
+                foreach (var turn in request.History)
+                    contents.Add(new { role = turn.Role == "assistant" ? "model" : "user", parts = new[] { new { text = turn.Content } } });
+            }
+            contents.Add(new
+            {
+                role = "user",
+                parts = new[] { new { text = request.Prompt } }
+            });
 
             int iterations = 0;
 
@@ -515,6 +507,95 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 Logger.Debug($"Failed to capture Google rate limit headers: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Build the Gemini "parameters" schema for a tool. Prefers the full original JSON schema
+        /// (external tools) so arrays declare 'items' and nested objects keep 'properties'; falls back
+        /// to the simple property map for built-in tools.
+        /// </summary>
+        private object BuildGeminiParameters(MCPTool tool)
+        {
+            if (tool.RawInputSchema != null)
+            {
+                var sanitized = SanitizeGeminiSchema(tool.RawInputSchema);
+                // Gemini requires the top-level parameters to be an object schema.
+                if (!sanitized.ContainsKey("type"))
+                    sanitized["type"] = "object";
+                return sanitized;
+            }
+
+            var properties = new Dictionary<string, object>();
+            foreach (var p in tool.InputSchema.Properties)
+                properties[p.Key] = BuildGeminiProperty(p.Value);
+
+            return new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = properties,
+                ["required"] = tool.InputSchema.Required
+            };
+        }
+
+        private Dictionary<string, object> BuildGeminiProperty(MCPToolParameter param)
+        {
+            var type = string.IsNullOrEmpty(param.Type) ? "string" : param.Type;
+            var d = new Dictionary<string, object> { ["type"] = type };
+            if (!string.IsNullOrEmpty(param.Description))
+                d["description"] = param.Description!;
+            if (param.Enum != null && param.Enum.Count > 0)
+                d["enum"] = param.Enum;
+            // Gemini requires array parameters to declare their item type.
+            if (type.Equals("array", StringComparison.OrdinalIgnoreCase))
+                d["items"] = new Dictionary<string, object> { ["type"] = "string" };
+            return d;
+        }
+
+        /// <summary>
+        /// Recursively convert a JSON Schema into a Gemini-compatible schema, keeping only supported
+        /// keywords and guaranteeing arrays have 'items' and objects have 'properties'.
+        /// </summary>
+        private Dictionary<string, object> SanitizeGeminiSchema(JToken? node)
+        {
+            var result = new Dictionary<string, object>();
+            if (node is not JObject obj)
+            {
+                result["type"] = "string";
+                return result;
+            }
+
+            var type = obj["type"]?.ToString();
+            if (string.IsNullOrEmpty(type))
+                type = obj["properties"] != null ? "object" : "string";
+            result["type"] = type;
+
+            var desc = obj["description"]?.ToString();
+            if (!string.IsNullOrEmpty(desc))
+                result["description"] = desc!;
+
+            if (obj["enum"] is JArray enumVals)
+                result["enum"] = enumVals.Select(v => v.ToString()).ToList();
+
+            if (type == "object")
+            {
+                var outProps = new Dictionary<string, object>();
+                if (obj["properties"] is JObject props)
+                {
+                    foreach (var p in props.Properties())
+                        outProps[p.Name] = SanitizeGeminiSchema(p.Value);
+                }
+                result["properties"] = outProps;
+                if (obj["required"] is JArray req)
+                    result["required"] = req.Select(v => v.ToString()).ToList();
+            }
+            else if (type == "array")
+            {
+                result["items"] = obj["items"] != null
+                    ? SanitizeGeminiSchema(obj["items"])
+                    : new Dictionary<string, object> { ["type"] = "string" };
+            }
+
+            return result;
         }
 
         private string GetMCPSystemPrompt()

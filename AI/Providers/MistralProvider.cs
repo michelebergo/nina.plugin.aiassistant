@@ -63,9 +63,14 @@ namespace NINA.Plugin.AIAssistant.AI
                     {
                         role = "system",
                         content = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so."
-                    },
-                    new { role = "user", content = request.Prompt }
+                    }
                 };
+                if (request.History != null)
+                {
+                    foreach (var turn in request.History)
+                        messages.Add(new { role = turn.Role, content = turn.Content });
+                }
+                messages.Add(new { role = "user", content = request.Prompt });
 
                 var modelId = _config.ModelId ?? "mistral-large-latest";
 

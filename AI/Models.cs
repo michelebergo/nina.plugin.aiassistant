@@ -72,6 +72,21 @@ namespace NINA.Plugin.AIAssistant.AI
         public Dictionary<string, object>? Metadata { get; set; }
         public double Temperature { get; set; } = 0.7;
         public int MaxTokens { get; set; } = 1000;
+
+        /// <summary>
+        /// Prior conversation turns (oldest first), excluding the current <see cref="Prompt"/>.
+        /// Providers prepend these so the model has multi-turn context.
+        /// </summary>
+        public List<AIChatTurn>? History { get; set; }
+    }
+
+    /// <summary>
+    /// A single prior turn in the conversation history.
+    /// </summary>
+    public class AIChatTurn
+    {
+        public string Role { get; set; } = "user"; // "user" or "assistant"
+        public string Content { get; set; } = string.Empty;
     }
 
     /// <summary>

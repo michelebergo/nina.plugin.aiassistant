@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1.2] - 2026-06-27
+
+### Added
+- 💬 **Conversation History** - The assistant now sends the full prior conversation with each message, so follow-up questions and pronoun references ("how long should I expose *it*?") work. Works across all providers. Use **Clear** to reset the context.
+- 🤖 **External MCP Tools for Claude** - Anthropic Claude can now use external MCP servers (web fetch/search, memory, Context7, etc.), matching Google Gemini and Ollama.
+
+### Fixed
+- 🐛 **Gemini Tool Schema (400)** - Google Gemini rejected tools whose array parameters lacked an `items` declaration (e.g. memory/filesystem servers). The full JSON schema is now preserved and sanitized so arrays declare `items` and objects keep `properties`.
+- 🐛 **Model Change Propagation** - Selecting a different model now re-initializes the active provider immediately; previously the change only applied after switching providers back and forth.
+
+### Changed
+- 🔍 **Ollama Model Auto-Detection** - The model list reliably reflects models installed on the server: it re-queries `/api/tags` when you open the dropdown, click the new **Refresh** button, or change the Server URL.
+
+---
+
 ## [2.4.1.1] - 2026-06-27
 
 ### Fixed

@@ -1,7 +1,7 @@
 {
   "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Version": "2.4.1.1",
+  "Version": "2.4.1.2",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -25,6 +25,17 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.4.1.2",
+      "Date": "2026-06-27",
+      "Changes": [
+        "New: full conversation history - the AI now remembers the whole chat session, so follow-up questions and 'it/that' references work (all providers)",
+        "New: external MCP tools now work with Anthropic Claude too (web fetch/search, memory, etc.), matching Gemini and Ollama",
+        "Fixed: Google Gemini 400 error - array tool parameters now correctly declare 'items' (and nested objects keep 'properties')",
+        "Fixed: changing the model now applies immediately in chat, no more switching providers back and forth",
+        "Improved: Ollama model list auto-detects installed models from the server (dropdown/Refresh re-query; re-detects when the Server URL changes)"
+      ]
+    },
     {
       "Version": "2.4.1.1",
       "Date": "2026-06-27",

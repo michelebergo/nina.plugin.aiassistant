@@ -141,14 +141,17 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" Margin="0"/>
+                            <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" Margin="0" LostFocus="OllamaEndpoint_LostFocus"/>
                             <Button Grid.Column="1" Content="Test" Click="TestOllama_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
                             <Button Grid.Column="2" Content="Get Ollama" Click="GetOllama_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
                         </Grid>
                         <TextBlock x:Name="OllamaTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded"/>
-                        <TextBlock Text="Tip: Run 'ollama pull modelname' to download models" FontSize="10" Opacity="0.5" Margin="0,5,0,0"/>
+                        <TextBlock Text="Model (auto-detected from the server):" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded" DropDownOpened="OllamaModelCombo_DropDownOpened"/>
+                            <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="6,0,0,0" MinWidth="70"/>
+                        </StackPanel>
+                        <TextBlock Text="Tip: Run 'ollama pull modelname' to download models. The list auto-detects installed models from the server (open the dropdown or click Refresh to update)." FontSize="10" Opacity="0.5" Margin="0,5,0,0" TextWrapping="Wrap"/>
                         <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
                             <Run Text="Remote model on your LAN: set the Server URL above to http://&lt;other-pc-ip&gt;:11434 (e.g. http://192.168.1.50:11434)."/><LineBreak/>
                             <Run Text="On that machine, start Ollama with OLLAMA_HOST=0.0.0.0 so it accepts network connections, and allow port 11434 through its firewall."/><LineBreak/>
