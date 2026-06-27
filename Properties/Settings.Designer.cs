@@ -224,6 +224,18 @@ namespace NINA.Plugin.AIAssistant.Properties {
             }
         }
 
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("{\n  \"mcpServers\": {\n    \"nina-advanced-api\": {\n      \"command\": \"python\",\n      \"args\": [\"nina_advanced_api_mcp_server.py\"],\n      \"env\": {\n        \"NINA_HOST\": \"localhost\",\n        \"NINA_PORT\": \"1888\"\n      },\n      \"enabled\": false\n    }\n  }\n}")]
+        public string ExternalMCPServersJson {
+            get {
+                return ((string)(this["ExternalMCPServersJson"]));
+            }
+            set {
+                this["ExternalMCPServersJson"] = value;
+            }
+        }
+
         // Mistral AI Settings
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

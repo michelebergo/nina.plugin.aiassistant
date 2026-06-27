@@ -15,7 +15,7 @@ namespace NINA.Plugin.AIAssistant.MCP
     /// <summary>
     /// Client for communicating with external MCP servers via stdio
     /// </summary>
-    public class ExternalMCPClient : IDisposable
+    public class ExternalMCPClient : IDisposable, IExternalMCPSource
     {
         private Process _process;
         private StreamWriter _stdin;
@@ -28,18 +28,27 @@ namespace NINA.Plugin.AIAssistant.MCP
         public string ServerVersion { get; private set; }
 
         /// <summary>
-        /// Start an external MCP server process
+        /// Start an external MCP server using a Python interpreter and script path.
+        /// Kept for backward compatibility; delegates to the generalized overload.
         /// </summary>
-        public async Task<bool> StartServerAsync(string pythonPath, string scriptPath, CancellationToken ct = default)
+        public Task<bool> StartServerAsync(string pythonPath, string scriptPath, CancellationToken ct = default)
+        {
+            return StartServerAsync(pythonPath, new[] { scriptPath }, null, ct);
+        }
+
+        /// <summary>
+        /// Start an external MCP server process with an arbitrary command, arguments and environment.
+        /// Supports python, node, npx, docker, or any executable.
+        /// </summary>
+        public async Task<bool> StartServerAsync(string command, IEnumerable<string> args, IDictionary<string, string>? env, CancellationToken ct = default)
         {
             try
             {
-                Logger.Info($"[MCP] Starting external MCP server: {scriptPath}");
+                Logger.Info($"[MCP] Starting external MCP server: {command} {string.Join(" ", args)}");
 
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = pythonPath,
-                    Arguments = scriptPath,
+                    FileName = command,
                     UseShellExecute = false,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
@@ -48,6 +57,15 @@ namespace NINA.Plugin.AIAssistant.MCP
                     StandardOutputEncoding = Encoding.UTF8,
                     StandardInputEncoding = Encoding.UTF8
                 };
+
+                foreach (var arg in args)
+                    startInfo.ArgumentList.Add(arg);
+
+                if (env != null)
+                {
+                    foreach (var kvp in env)
+                        startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
 
                 _process = new Process { StartInfo = startInfo };
                 

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1.0] - 2026-06-27
+
+### Added
+- 🔌 **Multiple External MCP Servers** - Connect several third-party MCP servers simultaneously using the standard `mcpServers` JSON configuration (the same format used by Claude Desktop and VS Code). Works with Google Gemini and Ollama providers. (Issue #4)
+- 🛠️ **Flexible Server Commands** - External MCP servers can now run any executable (python, node, npx, docker, or a binary) with custom `args` and `env` variables, instead of being limited to a single Python script.
+
+### Changed
+- Tool name collisions across external servers are automatically prefixed with the (sanitized) server name to avoid silent drops.
+- Options UI replaces the single Python/script-path fields with an `mcpServers` JSON editor, a **Validate** button, and a **Reset to NINA Default** button that loads a prefilled NINA MCP server template.
+
+### Fixed
+- 🐛 **Connect/Disconnect All Accuracy** - `nina_connect_all_equipment` / `nina_disconnect_all_equipment` no longer report success based only on the HTTP status. They now read each device's actual API `Success` field and surface per-device error messages, so the AI no longer claims equipment is connected when it isn't.
+- 🐛 **Multi-line Chat Paste** - The chat input box now preserves multi-line pasted text instead of truncating at the first line. Enter sends the message; Shift+Enter inserts a newline.
+
+### Compatibility
+- Backward compatible: existing single-server `ExternalMCPPythonPath` / `ExternalMCPScriptPath` settings are migrated automatically into one server config at runtime.
+
+---
+
 ## [2.4.0.1] - 2026-06-27
 
 ### Fixed

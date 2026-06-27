@@ -22,7 +22,7 @@ namespace NINA.Plugin.AIAssistant.AI
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;
         private NINAAdvancedAPIClient? _mcpClient;
-        private ExternalMCPClient? _externalMcpClient;
+        private IExternalMCPSource? _externalMcpClient;
         private MCPConfig? _mcpConfig;
         private bool _mcpEnabled;
         private const int MaxToolIterations = 10; // Prevent infinite loops
@@ -85,12 +85,12 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
-        /// Set external MCP client for additional tools
+        /// Set external MCP source (single server or multi-server manager) for additional tools
         /// </summary>
-        public void SetExternalMCP(ExternalMCPClient externalMcpClient)
+        public void SetExternalMCP(IExternalMCPSource externalMcpClient)
         {
             _externalMcpClient = externalMcpClient;
-            Logger.Info($"External MCP client set for Ollama: {_externalMcpClient.ServerName}");
+            Logger.Info($"External MCP source set for Ollama: {_externalMcpClient.ServerName}");
         }
 
         public async Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default)

@@ -87,9 +87,9 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
-        /// Set external MCP client for additional tools (not implemented for Anthropic yet)
+        /// Set external MCP source for additional tools (not implemented for Anthropic yet)
         /// </summary>
-        public void SetExternalMCP(NINA.Plugin.AIAssistant.MCP.ExternalMCPClient externalMcpClient)
+        public void SetExternalMCP(NINA.Plugin.AIAssistant.MCP.IExternalMCPSource externalMcpClient)
         {
             Logger.Info("External MCP not yet implemented for Anthropic provider");
             // TODO: Implement external MCP support for Claude similar to Google

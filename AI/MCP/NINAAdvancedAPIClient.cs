@@ -1631,39 +1631,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                         "equipment/safetymonitor/connect"
                     };
 
-                    var tasks = endpoints.Select(async ep =>
-                    {
-                        try
-                        {
-                            var r = await _httpClient.GetAsync($"{baseUrl}/{ep}", cancellationToken);
-                            var content = await r.Content.ReadAsStringAsync(cancellationToken);
-                            return new { Endpoint = ep, Success = r.IsSuccessStatusCode, Content = content };
-                        }
-                        catch (Exception e)
-                        {
-                            return new { Endpoint = ep, Success = false, Content = e.Message };
-                        }
-                    });
-
-                    var results = await Task.WhenAll(tasks);
-                    
-                    var data = new Dictionary<string, object>();
-                    bool allSuccess = true;
-                    var sb = new StringBuilder();
-                    
-                    foreach (var res in results)
-                    {
-                        data[res.Endpoint] = new { Success = res.Success, Content = res.Content };
-                        if (!res.Success) allSuccess = false;
-                        sb.AppendLine($"[{res.Endpoint}] Success: {res.Success}");
-                    }
-
-                    return new MCPToolResult
-                    {
-                        Success = allSuccess,
-                        Content = $"Bulk connection attempt completed.\n{sb}",
-                        Data = data
-                    };
+                    return await InvokeBulkEquipmentAsync(baseUrl, endpoints, "connection", cancellationToken);
                 }
 
                 if (toolName == "nina_disconnect_all_equipment")
@@ -1684,39 +1652,7 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                         "equipment/safetymonitor/disconnect"
                     };
 
-                    var tasks = endpoints.Select(async ep =>
-                    {
-                        try
-                        {
-                            var r = await _httpClient.GetAsync($"{baseUrl}/{ep}", cancellationToken);
-                            var content = await r.Content.ReadAsStringAsync(cancellationToken);
-                            return new { Endpoint = ep, Success = r.IsSuccessStatusCode, Content = content };
-                        }
-                        catch (Exception e)
-                        {
-                            return new { Endpoint = ep, Success = false, Content = e.Message };
-                        }
-                    });
-
-                    var results = await Task.WhenAll(tasks);
-                    
-                    var data = new Dictionary<string, object>();
-                    bool allSuccess = true;
-                    var sb = new StringBuilder();
-                    
-                    foreach (var res in results)
-                    {
-                        data[res.Endpoint] = new { Success = res.Success, Content = res.Content };
-                        if (!res.Success) allSuccess = false;
-                        sb.AppendLine($"[{res.Endpoint}] Success: {res.Success}");
-                    }
-
-                    return new MCPToolResult
-                    {
-                        Success = allSuccess,
-                        Content = $"Bulk disconnect attempt completed.\n{sb}",
-                        Data = data
-                    };
+                    return await InvokeBulkEquipmentAsync(baseUrl, endpoints, "disconnect", cancellationToken);
                 }
 
                 // Special handling for nina_wait - this is a delay, not an API call
@@ -1770,6 +1706,67 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 Logger.Error($"Error invoking NINA tool {toolName}: {ex.Message}");
                 return new MCPToolResult { Success = false, Error = ex.Message };
             }
+        }
+
+        /// <summary>
+        /// Issue connect/disconnect calls to multiple equipment endpoints and evaluate the actual
+        /// per-device outcome from the NINA API response body (the API returns HTTP 200 even when a
+        /// device fails to connect, reporting the real result in the JSON "Success" field).
+        /// </summary>
+        private async Task<MCPToolResult> InvokeBulkEquipmentAsync(string baseUrl, string[] endpoints, string actionLabel, CancellationToken cancellationToken)
+        {
+            var tasks = endpoints.Select(async ep =>
+            {
+                try
+                {
+                    var r = await _httpClient.GetAsync($"{baseUrl}/{ep}", cancellationToken);
+                    var content = await r.Content.ReadAsStringAsync(cancellationToken);
+
+                    // Default to HTTP status, but prefer the API-level Success field from the body.
+                    bool apiSuccess = r.IsSuccessStatusCode;
+                    string? apiError = null;
+                    try
+                    {
+                        var json = JObject.Parse(content);
+                        if (json["Success"] != null)
+                            apiSuccess = json["Success"]!.Value<bool>();
+                        apiError = json["Error"]?.ToString();
+                        if (string.IsNullOrEmpty(apiError))
+                            apiError = json["Response"]?.ToString();
+                    }
+                    catch
+                    {
+                        // Body is not JSON; keep the HTTP-status-based result.
+                    }
+
+                    return new { Endpoint = ep, Success = apiSuccess, Content = content, Error = apiError };
+                }
+                catch (Exception e)
+                {
+                    return new { Endpoint = ep, Success = false, Content = e.Message, Error = (string?)e.Message };
+                }
+            });
+
+            var results = await Task.WhenAll(tasks);
+
+            var data = new Dictionary<string, object>();
+            bool allSuccess = true;
+            var sb = new StringBuilder();
+
+            foreach (var res in results)
+            {
+                data[res.Endpoint] = new { Success = res.Success, Content = res.Content };
+                if (!res.Success) allSuccess = false;
+                var detail = !res.Success && !string.IsNullOrEmpty(res.Error) ? $" - {res.Error}" : "";
+                sb.AppendLine($"[{res.Endpoint}] Success: {res.Success}{detail}");
+            }
+
+            return new MCPToolResult
+            {
+                Success = allSuccess,
+                Content = $"Bulk {actionLabel} attempt completed. Only devices reporting Success: True are actually connected; treat Success: False as NOT connected.\n{sb}",
+                Data = data
+            };
         }
 
         /// <summary>

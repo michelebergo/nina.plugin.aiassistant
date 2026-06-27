@@ -1,7 +1,7 @@
 {
   "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Version": "2.4.0.1",
+  "Version": "2.4.1.0",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -25,6 +25,19 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.4.1.0",
+      "Date": "2026-06-27",
+      "Changes": [
+        "Multiple external MCP servers: connect several third-party MCP servers at once using the standard mcpServers JSON config (Google Gemini and Ollama)",
+        "External MCP servers can now use any command (python, node, npx, docker, binaries) with args and environment variables",
+        "Tool name collisions across external servers are auto-prefixed with the server name to avoid silent drops",
+        "Options UI: replaced single python/script fields with an mcpServers JSON editor plus Validate and Reset to NINA Default buttons (prefilled NINA MCP server template)",
+        "Fixed: connect/disconnect all equipment no longer falsely reports success - it now reads each device's actual API Success field and shows per-device errors",
+        "Fixed: chat input now preserves multi-line pasted text (Enter sends, Shift+Enter inserts a newline)",
+        "Backward compatible: existing single-server settings are migrated automatically"
+      ]
+    },
     {
       "Version": "2.4.0.1",
       "Date": "2026-06-27",

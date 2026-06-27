@@ -457,6 +457,21 @@ namespace NINA.Plugin.AIAssistant
             }
         }
 
+        /// <summary>
+        /// Standard mcpServers JSON configuration for one or more external MCP servers.
+        /// Example: { "mcpServers": { "weather": { "command": "python", "args": ["weather.py"] } } }
+        /// </summary>
+        public string ExternalMCPServersJson
+        {
+            get => Settings.Default.ExternalMCPServersJson;
+            set
+            {
+                Settings.Default.ExternalMCPServersJson = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
+
         #endregion
 
         #region Helper Methods

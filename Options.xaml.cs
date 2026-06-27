@@ -755,6 +755,61 @@ namespace NINA.Plugin.AIAssistant
             });
         }
 
+        private const string NinaDefaultMCPServersJson =
+            "{\n" +
+            "  \"mcpServers\": {\n" +
+            "    \"nina-advanced-api\": {\n" +
+            "      \"command\": \"python\",\n" +
+            "      \"args\": [\"nina_advanced_api_mcp_server.py\"],\n" +
+            "      \"env\": {\n" +
+            "        \"NINA_HOST\": \"localhost\",\n" +
+            "        \"NINA_PORT\": \"1888\"\n" +
+            "      },\n" +
+            "      \"enabled\": false\n" +
+            "    }\n" +
+            "  }\n" +
+            "}";
+
+        private void ResetExternalMCP_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.DataContext is not AIAssistantPlugin plugin) return;
+
+            plugin.ExternalMCPServersJson = NinaDefaultMCPServersJson;
+
+            var resultTextBlock = FindTextBlock("ExternalMCPValidateResult", button);
+            if (resultTextBlock != null)
+            {
+                ShowResult(resultTextBlock, "↺ Loaded NINA Advanced API MCP server template (set \"enabled\": true and adjust the script path to use it)", Colors.LightGreen);
+            }
+        }
+
+        private void ValidateExternalMCP_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.DataContext is not AIAssistantPlugin plugin) return;
+
+            var resultTextBlock = FindTextBlock("ExternalMCPValidateResult", button);
+            if (resultTextBlock == null) return;
+
+            var json = plugin.ExternalMCPServersJson;
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                ShowResult(resultTextBlock, "⚠️ No servers configured (field is empty)", Colors.Orange);
+                return;
+            }
+
+            var configs = MCP.ExternalMCPConfigParser.Parse(json);
+            if (configs.Count == 0)
+            {
+                ShowResult(resultTextBlock, "❌ Invalid JSON or no servers found. Expected: { \"mcpServers\": { \"name\": { \"command\": ... } } }", Colors.Salmon);
+                return;
+            }
+
+            var names = string.Join(", ", configs.Select(c => $"{c.Name}{(c.Enabled ? "" : " (disabled)")}"));
+            ShowResult(resultTextBlock, $"✅ {configs.Count} server(s) parsed: {names}", Colors.LightGreen);
+        }
+
         #endregion
 
         #region Model Loading

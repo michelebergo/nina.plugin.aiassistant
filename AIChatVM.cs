@@ -129,6 +129,8 @@ namespace NINA.Plugin.AIAssistant
         
         public void Hide(object? o)
         {
+            _externalMcpManager?.Dispose();
+            _externalMcpManager = null;
             IsClosed = true;
         }
 
@@ -197,6 +199,7 @@ namespace NINA.Plugin.AIAssistant
 
         private readonly AIService? _aiService;
         private bool _mcpInitialized = false;
+        private ExternalMCPManager? _externalMcpManager;
         private CancellationTokenSource? _responseCancellationTokenSource;
 
         private async Task InitializeMCPIfNeeded()
@@ -319,43 +322,60 @@ namespace NINA.Plugin.AIAssistant
         {
             try
             {
-                var pythonPath = plugin.ExternalMCPPythonPath;
-                var scriptPath = plugin.ExternalMCPScriptPath;
-                
-                if (string.IsNullOrEmpty(pythonPath) || string.IsNullOrEmpty(scriptPath))
+                // Parse the standard mcpServers JSON configuration (supports multiple servers).
+                var configs = ExternalMCPConfigParser.Parse(plugin.ExternalMCPServersJson);
+
+                // Backward-compatibility migration: if no JSON config but legacy single-server
+                // paths are set, synthesize one server config.
+                if (configs.Count == 0 && !string.IsNullOrWhiteSpace(plugin.ExternalMCPScriptPath))
+                {
+                    configs.Add(new ExternalMCPServerConfig
+                    {
+                        Name = "default",
+                        Command = string.IsNullOrWhiteSpace(plugin.ExternalMCPPythonPath) ? "python" : plugin.ExternalMCPPythonPath,
+                        Args = new System.Collections.Generic.List<string> { plugin.ExternalMCPScriptPath }
+                    });
+                }
+
+                if (configs.Count == 0)
                 {
                     Logger.Info("AIChatVM: External MCP not configured");
                     return;
                 }
-                
-                var externalMCP = new ExternalMCPClient();
-                var started = await externalMCP.StartServerAsync(pythonPath, scriptPath);
-                
-                if (started)
+
+                // Dispose any previous manager before starting a new one.
+                _externalMcpManager?.Dispose();
+                _externalMcpManager = null;
+
+                var manager = new ExternalMCPManager();
+                var anyStarted = await manager.StartAllAsync(configs);
+
+                if (anyStarted)
                 {
-                    Logger.Info($"AIChatVM: External MCP server started: {externalMCP.ServerName} v{externalMCP.ServerVersion}");
-                    
+                    _externalMcpManager = manager;
+                    Logger.Info($"AIChatVM: External MCP started: {manager.ConnectedCount} server(s) - {manager.ServerName}");
+
                     // Pass to active provider
                     if (_aiService?.ActiveProviderType == AIProviderType.Anthropic)
                     {
                         var provider = _aiService.GetActiveProvider() as AnthropicProvider;
-                        provider?.SetExternalMCP(externalMCP);
+                        provider?.SetExternalMCP(manager);
                     }
                     else if (_aiService?.ActiveProviderType == AIProviderType.Google)
                     {
                         var provider = _aiService.GetActiveProvider() as GoogleProvider;
-                        provider?.SetExternalMCP(externalMCP);
+                        provider?.SetExternalMCP(manager);
                     }
                     else if (_aiService?.ActiveProviderType == AIProviderType.Ollama)
                     {
                         var provider = _aiService.GetActiveProvider() as OllamaProvider;
-                        provider?.SetExternalMCP(externalMCP);
+                        provider?.SetExternalMCP(manager);
                     }
                 }
                 else
                 {
-                    Logger.Warning("AIChatVM: Failed to start external MCP server");
-                    externalMCP.Dispose();
+                    Logger.Warning("AIChatVM: No external MCP servers started");
+                    manager.Dispose();
                 }
             }
             catch (Exception ex)
