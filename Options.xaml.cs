@@ -784,6 +784,101 @@ namespace NINA.Plugin.AIAssistant
             }
         }
 
+        private void AddUsefulServer_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.DataContext is not AIAssistantPlugin plugin) return;
+
+            var resultTextBlock = FindTextBlock("ExternalMCPValidateResult", button);
+
+            var combo = FindControl<ComboBox>("UsefulServersCombo");
+            var tag = (combo?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            if (string.IsNullOrEmpty(tag))
+            {
+                if (resultTextBlock != null) ShowResult(resultTextBlock, "⚠️ Select a server first", Colors.Orange);
+                return;
+            }
+
+            var (name, config) = BuildUsefulServer(tag!);
+            if (config == null)
+            {
+                if (resultTextBlock != null) ShowResult(resultTextBlock, "❌ Unknown server template", Colors.Salmon);
+                return;
+            }
+
+            // Merge into the existing mcpServers object (do not clobber on invalid JSON).
+            JObject root;
+            var current = plugin.ExternalMCPServersJson;
+            if (string.IsNullOrWhiteSpace(current))
+            {
+                root = new JObject();
+            }
+            else
+            {
+                try
+                {
+                    root = JObject.Parse(current);
+                }
+                catch
+                {
+                    if (resultTextBlock != null)
+                        ShowResult(resultTextBlock, "❌ Current JSON is invalid — fix it or click Reset to NINA Default first", Colors.Salmon);
+                    return;
+                }
+            }
+
+            if (root["mcpServers"] is not JObject servers)
+            {
+                servers = new JObject();
+                root["mcpServers"] = servers;
+            }
+
+            servers[name] = config;
+            plugin.ExternalMCPServersJson = root.ToString(Formatting.Indented);
+
+            if (resultTextBlock != null)
+                ShowResult(resultTextBlock, $"➕ Added '{name}' server. Set its API key (if any) and \"enabled\": true, then click Validate.", Colors.LightGreen);
+        }
+
+        private (string name, JObject? config) BuildUsefulServer(string tag)
+        {
+            JObject Cfg(string command, string[] args, bool enabled, (string, string)[]? env = null)
+            {
+                var o = new JObject
+                {
+                    ["command"] = command,
+                    ["args"] = new JArray(args)
+                };
+                if (env != null && env.Length > 0)
+                {
+                    var e = new JObject();
+                    foreach (var (k, v) in env) e[k] = v;
+                    o["env"] = e;
+                }
+                o["enabled"] = enabled;
+                return o;
+            }
+
+            var ninaLogs = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NINA", "Logs");
+
+            return tag switch
+            {
+                "fetch" => ("fetch", Cfg("uvx", new[] { "mcp-server-fetch", "--ignore-robots-txt" }, true)),
+                "ddg-search" => ("ddg-search", Cfg("uvx", new[] { "duckduckgo-mcp-server" }, true)),
+                "brave-search" => ("brave-search", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-brave-search" }, false, new[] { ("BRAVE_API_KEY", "") })),
+                "context7" => ("context7", Cfg("npx", new[] { "-y", "@upstash/context7-mcp" }, false, new[] { ("CONTEXT7_API_KEY", "") })),
+                "memory" => ("memory", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-memory" }, true)),
+                "sequential-thinking" => ("sequential-thinking", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-sequential-thinking" }, true)),
+                "wikipedia" => ("wikipedia", Cfg("uvx", new[] { "wikipedia-mcp" }, true)),
+                "arxiv" => ("arxiv", Cfg("uvx", new[] { "arxiv-mcp-server" }, true)),
+                "time" => ("time", Cfg("uvx", new[] { "mcp-server-time", "--local-timezone", "Europe/Rome" }, true)),
+                "filesystem" => ("filesystem", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-filesystem", ninaLogs }, true)),
+                "everything" => ("everything", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-everything" }, true)),
+                _ => (tag, null)
+            };
+        }
+
         private void ValidateExternalMCP_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;

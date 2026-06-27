@@ -1,7 +1,7 @@
 {
   "Identifier": "AI Assistant",
   "Name": "AI Assistant",
-  "Version": "2.4.1.0",
+  "Version": "2.4.1.1",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -25,6 +25,19 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.4.1.1",
+      "Date": "2026-06-27",
+      "Changes": [
+        "Fixed: external MCP servers launched via npx/.cmd now start correctly on Windows (PATHEXT resolution + cmd.exe routing) - unblocks most popular MCP servers",
+        "Fixed: stdio JSON-RPC handshake corrupted by a UTF-8 BOM, which prevented strict servers (e.g. Python MCP SDK) from connecting",
+        "Fixed: concurrent external tool calls no longer collide on the server stream (serialized request/response IO)",
+        "Improved: MCP system prompt now tells the model to use available external tools (web fetch/search, etc.), not only NINA equipment tools",
+        "New: 'Useful servers' picker in Options to add fetch, search, Wikipedia, arXiv, memory and more to the config in one click",
+        "New: animated 'AI is working' indicator in chat so long tool calls don't look frozen",
+        "New: Ollama remote-host guidance for running the model on another LAN machine (OLLAMA_HOST=0.0.0.0)"
+      ]
+    },
     {
       "Version": "2.4.1.0",
       "Date": "2026-06-27",

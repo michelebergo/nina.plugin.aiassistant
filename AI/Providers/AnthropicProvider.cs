@@ -467,7 +467,9 @@ When the user asks to check equipment, get status, or perform ANY action:
 2. Report the actual results from the tool
 3. Provide helpful interpretation of the data
 
-For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first. If user says 'connect all', USE nina_connect_all_equipment.";
+For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first. If user says 'connect all', USE nina_connect_all_equipment.
+
+ADDITIONAL EXTERNAL TOOLS: Besides the NINA equipment tools above, you may ALSO have extra tools from external MCP servers (for example: web page fetching, web search, filesystem access, time/almanac data). They appear in your available tool list, sometimes prefixed with a server name. ALWAYS use whatever tools are actually available to fulfil the user's request - e.g. use a fetch or search tool to look up targets, coordinates, weather, or catalog data online (sites like Telescopius, Stellarium, etc.). Before telling the user you cannot do something, CHECK your available tools and use them. Never claim you lack a capability if a matching tool is present.";
         }
 
         public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)

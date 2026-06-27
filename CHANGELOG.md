@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1.1] - 2026-06-27
+
+### Fixed
+- 🐛 **npx/.cmd Launch on Windows** - External MCP servers started via `npx` (and other `.cmd`/`.bat` shims) now launch correctly. `Process.Start` cannot run `.cmd` files directly, so commands are resolved through `PATHEXT` and routed via `cmd.exe`. This unblocks most popular MCP servers (brave-search, context7, memory, sequential-thinking, etc.).
+- 🐛 **BOM Handshake Corruption** - The stdio JSON-RPC stream no longer emits a UTF-8 BOM, which was breaking strict parsers (e.g. the Python MCP SDK) and preventing those servers from connecting.
+- 🐛 **Concurrent Tool-Call Collisions** - The full request/response cycle is now serialized with a semaphore, fixing "the stream is in use by a previous operation" errors when tool calls overlap.
+
+### Changed / Added
+- 🧠 **External-Tools Prompt** - The MCP system prompt now instructs the model to use any available external tools (web fetch/search, filesystem, etc.) and to check its tools before refusing, instead of only NINA equipment tools.
+- 🧩 **"Useful Servers" Picker** - Options now has a dropdown to add ready-made server configs (fetch, DuckDuckGo, Brave, Context7, memory, sequential-thinking, Wikipedia, arXiv, time, filesystem, everything) to the `mcpServers` JSON in one click.
+- ⏳ **"AI is working" Indicator** - An animated indicator appears in the chat during processing so long tool-calling runs don't look frozen.
+- 🖥️ **Ollama Remote Host** - Added guidance in Options for running the Ollama model on another LAN machine (`OLLAMA_HOST=0.0.0.0`, port 11434).
+
+---
+
 ## [2.4.1.0] - 2026-06-27
 
 ### Added
