@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace NINA.Plugin.AIAssistant.AI.MCP
 {
@@ -41,6 +42,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public MCPToolInputSchema InputSchema { get; set; } = new();
+
+        /// <summary>
+        /// Original JSON Schema for the tool input (used by providers that need the full, untruncated
+        /// schema such as Gemini, which requires array parameters to declare their 'items').
+        /// </summary>
+        public JObject? RawInputSchema { get; set; }
     }
 
     /// <summary>

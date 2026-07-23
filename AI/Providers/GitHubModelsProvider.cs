@@ -65,19 +65,25 @@ namespace NINA.Plugin.AIAssistant.AI
             try
             {
                 var systemPrompt = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
-                var messages = new ChatRequestMessage[]
-                {
-                    new ChatRequestSystemMessage(systemPrompt),
-                    new ChatRequestUserMessage(request.Prompt)
-                };
 
                 var chatOptions = new ChatCompletionsOptions
                 {
-                    Messages = { messages[0], messages[1] },
                     // GitHub Models doesn't support temperature parameter - uses default (1.0)
                     // Temperature is removed to avoid "unsupported_parameter" errors
-                    Model = _config.ModelId ?? "gpt-4o" 
+                    Model = _config.ModelId ?? "gpt-4o"
                 };
+                chatOptions.Messages.Add(new ChatRequestSystemMessage(systemPrompt));
+                if (request.History != null)
+                {
+                    foreach (var turn in request.History)
+                    {
+                        if (turn.Role == "assistant")
+                            chatOptions.Messages.Add(new ChatRequestAssistantMessage(turn.Content));
+                        else
+                            chatOptions.Messages.Add(new ChatRequestUserMessage(turn.Content));
+                    }
+                }
+                chatOptions.Messages.Add(new ChatRequestUserMessage(request.Prompt));
                 // GitHub Models uses max_completion_tokens instead of max_tokens
                 chatOptions.AdditionalProperties["max_completion_tokens"] = BinaryData.FromObjectAsJson(request.MaxTokens);
 

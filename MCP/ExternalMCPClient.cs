@@ -15,12 +15,12 @@ namespace NINA.Plugin.AIAssistant.MCP
     /// <summary>
     /// Client for communicating with external MCP servers via stdio
     /// </summary>
-    public class ExternalMCPClient : IDisposable
+    public class ExternalMCPClient : IDisposable, IExternalMCPSource
     {
         private Process _process;
         private StreamWriter _stdin;
         private StreamReader _stdout;
-        private readonly object _lock = new object();
+        private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
         private int _messageId = 1;
 
         public bool IsConnected { get; private set; }
@@ -28,26 +28,55 @@ namespace NINA.Plugin.AIAssistant.MCP
         public string ServerVersion { get; private set; }
 
         /// <summary>
-        /// Start an external MCP server process
+        /// Start an external MCP server using a Python interpreter and script path.
+        /// Kept for backward compatibility; delegates to the generalized overload.
         /// </summary>
-        public async Task<bool> StartServerAsync(string pythonPath, string scriptPath, CancellationToken ct = default)
+        public Task<bool> StartServerAsync(string pythonPath, string scriptPath, CancellationToken ct = default)
+        {
+            return StartServerAsync(pythonPath, new[] { scriptPath }, null, ct);
+        }
+
+        /// <summary>
+        /// Start an external MCP server process with an arbitrary command, arguments and environment.
+        /// Supports python, node, npx, docker, or any executable.
+        /// </summary>
+        public async Task<bool> StartServerAsync(string command, IEnumerable<string> args, IDictionary<string, string>? env, CancellationToken ct = default)
         {
             try
             {
-                Logger.Info($"[MCP] Starting external MCP server: {scriptPath}");
+                Logger.Info($"[MCP] Starting external MCP server: {command} {string.Join(" ", args)}");
+
+                // On Windows, npx/npm/etc. are .cmd scripts that Process.Start (UseShellExecute=false)
+                // cannot launch directly, and PATH resolution does not apply PATHEXT. Resolve the real
+                // executable and route .cmd/.bat through cmd.exe.
+                var (fileName, prefixArgs) = ResolveExecutable(command);
 
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = pythonPath,
-                    Arguments = scriptPath,
+                    FileName = fileName,
                     UseShellExecute = false,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardInputEncoding = Encoding.UTF8
+                    // UTF-8 WITHOUT a BOM. Encoding.UTF8 emits a BOM preamble on first stdin write,
+                    // which corrupts the first JSON-RPC message and breaks strict parsers (e.g. the
+                    // Python MCP SDK rejects the leading \ufeff).
+                    StandardOutputEncoding = new UTF8Encoding(false),
+                    StandardInputEncoding = new UTF8Encoding(false)
                 };
+
+                foreach (var pa in prefixArgs)
+                    startInfo.ArgumentList.Add(pa);
+
+                foreach (var arg in args)
+                    startInfo.ArgumentList.Add(arg);
+
+                if (env != null)
+                {
+                    foreach (var kvp in env)
+                        startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
 
                 _process = new Process { StartInfo = startInfo };
                 
@@ -153,13 +182,17 @@ namespace NINA.Plugin.AIAssistant.MCP
         /// </summary>
         private async Task<JObject> SendRequestAsync(string method, object parameters, CancellationToken ct)
         {
-            lock (_lock)
+            if (!IsConnected && method != "initialize")
             {
-                if (!IsConnected && method != "initialize")
-                {
-                    throw new InvalidOperationException("MCP server not connected");
-                }
+                throw new InvalidOperationException("MCP server not connected");
+            }
 
+            // Serialize the entire write+read cycle. stdio JSON-RPC is request/response and this client
+            // matches each response to the next line read, so concurrent calls must not interleave
+            // (otherwise the underlying stream throws "stream is in use by a previous operation").
+            await _ioLock.WaitAsync(ct);
+            try
+            {
                 var request = new JObject
                 {
                     ["jsonrpc"] = "2.0",
@@ -171,29 +204,88 @@ namespace NINA.Plugin.AIAssistant.MCP
                 var requestLine = request.ToString(Formatting.None);
                 Logger.Trace($"[MCP →] {requestLine}");
 
-                _stdin.WriteLine(requestLine);
-                _stdin.Flush();
-            }
+                await _stdin.WriteLineAsync(requestLine);
+                await _stdin.FlushAsync();
 
-            // Read response (may need timeout handling)
-            var responseLine = await _stdout.ReadLineAsync();
-            
-            if (string.IsNullOrEmpty(responseLine))
+                // Read response (may need timeout handling)
+                var responseLine = await _stdout.ReadLineAsync();
+
+                if (string.IsNullOrEmpty(responseLine))
+                {
+                    throw new InvalidOperationException("MCP server closed connection");
+                }
+
+                Logger.Trace($"[MCP ←] {responseLine}");
+
+                // Defensively strip a leading BOM in case the server emits one.
+                responseLine = responseLine.TrimStart('\uFEFF');
+
+                var response = JObject.Parse(responseLine);
+
+                if (response["error"] != null)
+                {
+                    var error = response["error"]["message"]?.ToString() ?? "Unknown error";
+                    throw new Exception($"MCP error: {error}");
+                }
+
+                return response["result"] as JObject;
+            }
+            finally
             {
-                throw new InvalidOperationException("MCP server closed connection");
+                _ioLock.Release();
             }
+        }
 
-            Logger.Trace($"[MCP ←] {responseLine}");
+        /// <summary>
+        /// Resolve a command to a launchable (FileName, prefix args) pair. On Windows this applies
+        /// PATHEXT so bare commands like "npx" find "npx.cmd"/"npx.exe", and routes .cmd/.bat scripts
+        /// through cmd.exe (which Process.Start cannot launch directly with UseShellExecute=false).
+        /// </summary>
+        private static (string fileName, List<string> prefixArgs) ResolveExecutable(string command)
+        {
+            if (!OperatingSystem.IsWindows())
+                return (command, new List<string>());
 
-            var response = JObject.Parse(responseLine);
+            bool hasDir = command.IndexOfAny(new[] { '/', '\\' }) >= 0;
+            bool hasExt = Path.HasExtension(command);
 
-            if (response["error"] != null)
+            // Explicit path or extension provided: use as-is, but route .cmd/.bat through cmd.exe.
+            if (hasDir || hasExt)
             {
-                var error = response["error"]["message"]?.ToString() ?? "Unknown error";
-                throw new Exception($"MCP error: {error}");
+                var ext0 = Path.GetExtension(command).ToLowerInvariant();
+                if (ext0 == ".cmd" || ext0 == ".bat")
+                    return ("cmd.exe", new List<string> { "/c", command });
+                return (command, new List<string>());
             }
 
-            return response["result"] as JObject;
+            // Bare command name: search PATH using PATHEXT.
+            var pathExts = (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
+                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var paths = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var dir in paths)
+            {
+                foreach (var ext in pathExts)
+                {
+                    string candidate;
+                    try { candidate = Path.Combine(dir.Trim(), command + ext); }
+                    catch { continue; }
+
+                    if (File.Exists(candidate))
+                    {
+                        var e = ext.ToLowerInvariant();
+                        // .cmd/.bat must run via cmd.exe; pass the bare name so cmd re-resolves it
+                        // (avoids quoting issues when the resolved path contains spaces).
+                        if (e == ".cmd" || e == ".bat")
+                            return ("cmd.exe", new List<string> { "/c", command });
+                        return (candidate, new List<string>());
+                    }
+                }
+            }
+
+            // Not found on PATH: let cmd.exe try (handles shims and app execution aliases).
+            return ("cmd.exe", new List<string> { "/c", command });
         }
 
         public void Dispose()

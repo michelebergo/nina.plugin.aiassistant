@@ -261,5 +261,42 @@ namespace NINA.Plugin.AIAssistant.Properties {
                 this["OrchestratorPollIntervalSeconds"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("{\n  \"mcpServers\": {\n    \"nina-advanced-api\": {\n      \"command\": \"python\",\n      \"args\": [\"nina_advanced_api_mcp_server.py\"],\n      \"env\": {\n        \"NINA_HOST\": \"localhost\",\n        \"NINA_PORT\": \"1888\"\n      },\n      \"enabled\": false\n    }\n  }\n}")]
+        public string ExternalMCPServersJson {
+            get {
+                return ((string)(this["ExternalMCPServersJson"]));
+            }
+            set {
+                this["ExternalMCPServersJson"] = value;
+            }
+        }
+
+        // Mistral AI Settings
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string MistralApiKey {
+            get {
+                return ((string)(this["MistralApiKey"]));
+            }
+            set {
+                this["MistralApiKey"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("mistral-large-latest")]
+        public string MistralModelId {
+            get {
+                return ((string)(this["MistralModelId"]));
+            }
+            set {
+                this["MistralModelId"] = value;
+            }
+        }
     }
 }

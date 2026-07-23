@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0.0] - 2026-07-23
+
+### Added
+- 🤖 **Mistral AI provider** - Mistral models (default `mistral-large-latest`) join GitHub Models, OpenAI, Anthropic, Google and Ollama.
+- 🛰️ **Orchestrator integration panel** - optional integration with the nina.autopilot orchestrator dashboard (disabled by default; URL and poll interval configurable).
+- ☕ **Support the project** - optional Buy Me a Coffee link in the Options page, README and GitHub Sponsor button. Completely non-intrusive: no popups, no nags, no telemetry.
+
+## [2.4.1.2] - 2026-06-27
+
+### Added
+- 💬 **Conversation History** - The assistant now sends the full prior conversation with each message, so follow-up questions and pronoun references ("how long should I expose *it*?") work. Works across all providers. Use **Clear** to reset the context.
+- 🤖 **External MCP Tools for Claude** - Anthropic Claude can now use external MCP servers (web fetch/search, memory, Context7, etc.), matching Google Gemini and Ollama.
+
+### Fixed
+- 🐛 **Gemini Tool Schema (400)** - Google Gemini rejected tools whose array parameters lacked an `items` declaration (e.g. memory/filesystem servers). The full JSON schema is now preserved and sanitized so arrays declare `items` and objects keep `properties`.
+- 🐛 **Model Change Propagation** - Selecting a different model now re-initializes the active provider immediately; previously the change only applied after switching providers back and forth.
+
+### Changed
+- 🔍 **Ollama Model Auto-Detection** - The model list reliably reflects models installed on the server: it re-queries `/api/tags` when you open the dropdown, click the new **Refresh** button, or change the Server URL.
+
+---
+
+## [2.4.1.1] - 2026-06-27
+
+### Fixed
+- 🐛 **npx/.cmd Launch on Windows** - External MCP servers started via `npx` (and other `.cmd`/`.bat` shims) now launch correctly. `Process.Start` cannot run `.cmd` files directly, so commands are resolved through `PATHEXT` and routed via `cmd.exe`. This unblocks most popular MCP servers (brave-search, context7, memory, sequential-thinking, etc.).
+- 🐛 **BOM Handshake Corruption** - The stdio JSON-RPC stream no longer emits a UTF-8 BOM, which was breaking strict parsers (e.g. the Python MCP SDK) and preventing those servers from connecting.
+- 🐛 **Concurrent Tool-Call Collisions** - The full request/response cycle is now serialized with a semaphore, fixing "the stream is in use by a previous operation" errors when tool calls overlap.
+
+### Changed / Added
+- 🧠 **External-Tools Prompt** - The MCP system prompt now instructs the model to use any available external tools (web fetch/search, filesystem, etc.) and to check its tools before refusing, instead of only NINA equipment tools.
+- 🧩 **"Useful Servers" Picker** - Options now has a dropdown to add ready-made server configs (fetch, DuckDuckGo, Brave, Context7, memory, sequential-thinking, Wikipedia, arXiv, time, filesystem, everything) to the `mcpServers` JSON in one click.
+- ⏳ **"AI is working" Indicator** - An animated indicator appears in the chat during processing so long tool-calling runs don't look frozen.
+- 🖥️ **Ollama Remote Host** - Added guidance in Options for running the Ollama model on another LAN machine (`OLLAMA_HOST=0.0.0.0`, port 11434).
+
+---
+
+## [2.4.1.0] - 2026-06-27
+
+### Added
+- 🔌 **Multiple External MCP Servers** - Connect several third-party MCP servers simultaneously using the standard `mcpServers` JSON configuration (the same format used by Claude Desktop and VS Code). Works with Google Gemini and Ollama providers. (Issue #4)
+- 🛠️ **Flexible Server Commands** - External MCP servers can now run any executable (python, node, npx, docker, or a binary) with custom `args` and `env` variables, instead of being limited to a single Python script.
+
+### Changed
+- Tool name collisions across external servers are automatically prefixed with the (sanitized) server name to avoid silent drops.
+- Options UI replaces the single Python/script-path fields with an `mcpServers` JSON editor, a **Validate** button, and a **Reset to NINA Default** button that loads a prefilled NINA MCP server template.
+
+### Fixed
+- 🐛 **Connect/Disconnect All Accuracy** - `nina_connect_all_equipment` / `nina_disconnect_all_equipment` no longer report success based only on the HTTP status. They now read each device's actual API `Success` field and surface per-device error messages, so the AI no longer claims equipment is connected when it isn't.
+- 🐛 **Multi-line Chat Paste** - The chat input box now preserves multi-line pasted text instead of truncating at the first line. Enter sends the message; Shift+Enter inserts a newline.
+
+### Compatibility
+- Backward compatible: existing single-server `ExternalMCPPythonPath` / `ExternalMCPScriptPath` settings are migrated automatically into one server config at runtime.
+
+---
+
+## [2.4.0.1] - 2026-06-27
+
+### Fixed
+- 🐛 **Mistral Model Dropdown Sync** - Selecting a model from the Mistral dropdown in Options now correctly syncs the model ID to the custom model textbox (missing entry in `ModelCombo_SelectionChanged` switch)
+- 🐛 **Mistral Provider Display Name** - `GetProviderDisplayName` now returns "Mistral AI (Paid)" instead of falling through to the raw enum name "Mistral"
+
+---
+
+## [2.4.0.0] - 2026-06-24
+
+### Added
+- 🤖 **MCP Support for Ollama** - Local AI models can now control NINA equipment via MCP without paid API keys. Requires a tool-capable Ollama model (e.g., Llama 3.1+, Qwen 2.5+). Uses Ollama's native tool-calling API. (Closes #3)
+- 🧠 **Mistral AI Provider** - New 6th AI provider supporting Mistral Large, Medium, Small, Open Mistral 7B, Open Mixtral 8x7B, and Codestral. Uses Mistral's OpenAI-compatible API with dynamic model discovery. (Closes #2)
+
+### Changed
+- MCP configuration section in Options now visible for Anthropic, Google, AND Ollama providers
+- Provider count updated from 5 to 6
+- Ollama timeout increased from 5 to 10 minutes to accommodate tool-calling iterations
+- Ollama provider display name updated to reflect MCP capability
+
+---
+
 ## [2.3.0.0] - 2026-03-03
 
 ### Added

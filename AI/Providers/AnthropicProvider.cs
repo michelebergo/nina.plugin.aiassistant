@@ -21,6 +21,7 @@ namespace NINA.Plugin.AIAssistant.AI
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;
         private NINAAdvancedAPIClient? _mcpClient;
+        private NINA.Plugin.AIAssistant.MCP.IExternalMCPSource? _externalMcpClient;
         private MCPConfig? _mcpConfig;
         private bool _mcpEnabled;
         private const string BaseUrl = "https://api.anthropic.com/v1";
@@ -30,7 +31,7 @@ namespace NINA.Plugin.AIAssistant.AI
         public AIProviderType ProviderType => AIProviderType.Anthropic;
         public string DisplayName => "Anthropic Claude (MCP Enabled)";
         public bool IsConfigured => _httpClient != null && _config != null;
-        public bool IsMCPEnabled => _mcpEnabled && _mcpClient?.IsConnected == true;
+        public bool IsMCPEnabled => _mcpEnabled && (_mcpClient?.IsConnected == true || _externalMcpClient?.IsConnected == true);
 
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
@@ -87,12 +88,12 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
-        /// Set external MCP client for additional tools (not implemented for Anthropic yet)
+        /// Set external MCP source (single server or multi-server manager) for additional tools
         /// </summary>
-        public void SetExternalMCP(NINA.Plugin.AIAssistant.MCP.ExternalMCPClient externalMcpClient)
+        public void SetExternalMCP(NINA.Plugin.AIAssistant.MCP.IExternalMCPSource externalMcpClient)
         {
-            Logger.Info("External MCP not yet implemented for Anthropic provider");
-            // TODO: Implement external MCP support for Claude similar to Google
+            _externalMcpClient = externalMcpClient;
+            Logger.Info($"External MCP source set for Anthropic: {_externalMcpClient.ServerName}");
         }
 
         public async Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -127,10 +128,13 @@ namespace NINA.Plugin.AIAssistant.AI
         private async Task<AIResponse> SendStandardRequestAsync(AIRequest request, CancellationToken cancellationToken)
         {
             var model = _config!.ModelId ?? DefaultModel;
-            var messages = new List<object>
+            var messages = new List<object>();
+            if (request.History != null)
             {
-                new { role = "user", content = request.Prompt }
-            };
+                foreach (var turn in request.History)
+                    messages.Add(new { role = turn.Role, content = turn.Content });
+            }
+            messages.Add(new { role = "user", content = request.Prompt });
 
             var requestBody = new
             {
@@ -193,27 +197,68 @@ namespace NINA.Plugin.AIAssistant.AI
         private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
         {
             var tools = _mcpClient!.GetAvailableTools();
-            Logger.Info($"AnthropicProvider: Sending request with {tools.Count} MCP tools available");
-            
-            var toolDefinitions = tools.Select(t => new
-            {
-                name = t.Name,
-                description = t.Description,
-                input_schema = new
-                {
-                    type = t.InputSchema.Type,
-                    properties = t.InputSchema.Properties.ToDictionary(
-                        p => p.Key,
-                        p => new { type = p.Value.Type, description = p.Value.Description }
-                    ),
-                    required = t.InputSchema.Required
-                }
-            }).ToList();
 
-            var messages = new List<object>
+            var toolDefinitions = new List<object>();
+            foreach (var t in tools)
             {
-                new { role = "user", content = request.Prompt }
-            };
+                toolDefinitions.Add(new
+                {
+                    name = t.Name,
+                    description = t.Description,
+                    input_schema = new
+                    {
+                        type = t.InputSchema.Type,
+                        properties = t.InputSchema.Properties.ToDictionary(
+                            p => p.Key,
+                            p => new { type = p.Value.Type, description = p.Value.Description }
+                        ),
+                        required = t.InputSchema.Required
+                    }
+                });
+            }
+
+            // Merge external MCP tools (Claude accepts standard JSON Schema for input_schema).
+            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
+            {
+                try
+                {
+                    var externalTools = await _externalMcpClient.GetToolsAsync(cancellationToken);
+                    int added = 0;
+                    foreach (var et in externalTools)
+                    {
+                        var name = et["name"]?.ToString();
+                        if (string.IsNullOrEmpty(name)) continue;
+                        if (tools.Any(bt => bt.Name == name))
+                        {
+                            Logger.Warning($"AnthropicProvider: Skipping external tool '{name}' (collides with a built-in tool)");
+                            continue;
+                        }
+                        var schema = et["inputSchema"] as JObject ?? new JObject { ["type"] = "object", ["properties"] = new JObject() };
+                        toolDefinitions.Add(new
+                        {
+                            name,
+                            description = et["description"]?.ToString() ?? "",
+                            input_schema = schema
+                        });
+                        added++;
+                    }
+                    Logger.Info($"AnthropicProvider: Added {added} external MCP tools");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"AnthropicProvider: Failed to get external MCP tools: {ex.Message}");
+                }
+            }
+
+            Logger.Info($"AnthropicProvider: Sending request with {toolDefinitions.Count} MCP tools available");
+
+            var messages = new List<object>();
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    messages.Add(new { role = turn.Role, content = turn.Content });
+            }
+            messages.Add(new { role = "user", content = request.Prompt });
 
             var systemPrompt = request.SystemPrompt ?? GetMCPSystemPrompt();
             Logger.Debug($"AnthropicProvider: Using system prompt: {systemPrompt.Substring(0, Math.Min(100, systemPrompt.Length))}...");
@@ -337,8 +382,33 @@ namespace NINA.Plugin.AIAssistant.AI
                     Logger.Debug($"[MCP] Tool arguments: {(toolInput != null ? JsonConvert.SerializeObject(toolInput) : "null")}");
                     
                     var result = await _mcpClient.InvokeToolAsync(toolName, toolInput, cancellationToken);
+
+                    // If the tool isn't a built-in NINA tool, route it to the external MCP source.
+                    bool isExternal = false;
+                    if (!result.Success && (result.Error?.Contains("Unknown tool") ?? false)
+                        && _externalMcpClient != null && _externalMcpClient.IsConnected)
+                    {
+                        try
+                        {
+                            var externalResult = await _externalMcpClient.CallToolAsync(
+                                toolName,
+                                JObject.FromObject(toolInput ?? new Dictionary<string, object>()),
+                                cancellationToken);
+                            result = new MCPToolResult
+                            {
+                                Success = externalResult["content"] != null && externalResult["error"] == null,
+                                Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
+                                Error = externalResult["error"]?.ToString()
+                            };
+                            isExternal = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            result = new MCPToolResult { Success = false, Error = ex.Message };
+                        }
+                    }
                     
-                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}");
+                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}{(isExternal ? " (External)" : " (Built-in)")}");
                     
                     var resultContent = result.Success 
                         ? result.Content ?? "Tool executed successfully" 
@@ -467,7 +537,9 @@ When the user asks to check equipment, get status, or perform ANY action:
 2. Report the actual results from the tool
 3. Provide helpful interpretation of the data
 
-For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first. If user says 'connect all', USE nina_connect_all_equipment.";
+For example, if user says 'check equipment' or 'show status', USE nina_get_status tool first. If user says 'connect all', USE nina_connect_all_equipment.
+
+ADDITIONAL EXTERNAL TOOLS: Besides the NINA equipment tools above, you may ALSO have extra tools from external MCP servers (for example: web page fetching, web search, filesystem access, time/almanac data). They appear in your available tool list, sometimes prefixed with a server name. ALWAYS use whatever tools are actually available to fulfil the user's request - e.g. use a fetch or search tool to look up targets, coordinates, weather, or catalog data online (sites like Telescopius, Stellarium, etc.). Before telling the user you cannot do something, CHECK your available tools and use them. Never claim you lack a capability if a matching tool is present.";
         }
 
         public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)

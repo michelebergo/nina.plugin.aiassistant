@@ -32,6 +32,7 @@
                             <ComboBoxItem Content="Anthropic Claude (MCP)" Tag="Anthropic"/>
                             <ComboBoxItem Content="Google Gemini (FREE)" Tag="Google"/>
                             <ComboBoxItem Content="Ollama (LOCAL)" Tag="Ollama"/>
+                            <ComboBoxItem Content="Mistral AI (PAID)" Tag="Mistral"/>
                         </ComboBox>
                         <TextBlock x:Name="ProviderStatusText" Margin="0,5,0,0" FontSize="11" Opacity="0.7"/>
                     </StackPanel>
@@ -140,21 +141,52 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" Margin="0"/>
+                            <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" Margin="0" LostFocus="OllamaEndpoint_LostFocus"/>
                             <Button Grid.Column="1" Content="Test" Click="TestOllama_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
                             <Button Grid.Column="2" Content="Get Ollama" Click="GetOllama_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
                         </Grid>
                         <TextBlock x:Name="OllamaTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded"/>
-                        <TextBlock Text="Tip: Run 'ollama pull modelname' to download models" FontSize="10" Opacity="0.5" Margin="0,5,0,0"/>
+                        <TextBlock Text="Model (auto-detected from the server):" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded" DropDownOpened="OllamaModelCombo_DropDownOpened"/>
+                            <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="6,0,0,0" MinWidth="70"/>
+                        </StackPanel>
+                        <TextBlock Text="Tip: Run 'ollama pull modelname' to download models. The list auto-detects installed models from the server (open the dropdown or click Refresh to update)." FontSize="10" Opacity="0.5" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
+                            <Run Text="Remote model on your LAN: set the Server URL above to http://&lt;other-pc-ip&gt;:11434 (e.g. http://192.168.1.50:11434)."/><LineBreak/>
+                            <Run Text="On that machine, start Ollama with OLLAMA_HOST=0.0.0.0 so it accepts network connections, and allow port 11434 through its firewall."/><LineBreak/>
+                            <Run Text="Equipment control and external MCP servers still run on this NINA PC; only the model inference is remote. Use a tool-capable model (e.g. qwen2.5, llama3.1) for MCP/web tools."/>
+                        </TextBlock>
                     </StackPanel>
                 </GroupBox>
 
-                <!-- MCP Section (visible for Anthropic and Google) -->
+                <!-- Mistral AI -->
+                <GroupBox Header="Mistral AI (PAID)" Margin="0,0,0,10" Visibility="{Binding IsMistralSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Mistral Large, Medium, Small, Mixtral - Requires Mistral AI account" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
+                        <TextBlock Text="Mistral API Key:" Margin="0,0,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="MistralTokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="MistralToken_Loaded" PasswordChanged="MistralToken_Changed"/>
+                            <Button Grid.Column="1" Content="Test" Click="TestMistralKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
+                            <Button Grid.Column="2" Content="Get Key" Click="GetMistralKey_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
+                        </Grid>
+                        <TextBlock x:Name="MistralTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
+                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
+                        <ComboBox x:Name="MistralModelComboBox" SelectedValue="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="200" Loaded="MistralModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
+                        <TextBox x:Name="MistralCustomModelBox" Text="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., mistral-large-latest, open-mixtral-8x7b, codestral-latest)"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- MCP Section (visible for Anthropic, Google, and Ollama) -->
                 <GroupBox Header="🤖 MCP - NINA Equipment Control" Margin="0,0,0,10" Visibility="{Binding IsMCPProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Margin="5">
-                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">When using Anthropic Claude or Google Gemini, enable MCP (Model Context Protocol) to give AI direct control over your NINA equipment via the Advanced API plugin.</TextBlock>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">When using Anthropic Claude, Google Gemini, or Ollama (with tool-capable models), enable MCP (Model Context Protocol) to give AI direct control over your NINA equipment via the Advanced API plugin.</TextBlock>
                         
                         <CheckBox Content="Enable MCP for Equipment Control" IsChecked="{Binding MCPEnabled, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
                         
@@ -193,35 +225,54 @@
                 </GroupBox>
 
                 <!-- External MCP Server Configuration -->
-                <GroupBox Header="🔧 External MCP Server (Advanced)" Margin="0,0,0,10">
+                <GroupBox Header="🔧 External MCP Servers (Advanced)" Margin="0,0,0,10">
                     <StackPanel Margin="5">
                         <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">
-                            Connect external MCP servers to extend AI capabilities beyond NINA equipment control.
-                            Add custom tools like astronomy calculations, weather APIs, databases, or any Python-based functionality.
+                            Connect one or more external MCP servers to extend AI capabilities beyond NINA equipment control.
+                            Use the standard mcpServers JSON format (the same used by Claude Desktop and VS Code). Each server can be
+                            python, node, npx, docker, or any executable. Works with Google Gemini and Ollama providers.
                         </TextBlock>
-                        
-                        <TextBlock Text="Python Executable Path:" Margin="0,0,0,5"/>
-                        <TextBox Text="{Binding ExternalMCPPythonPath, UpdateSourceTrigger=PropertyChanged}" 
-                                 HorizontalAlignment="Left" MinWidth="350" 
-                                 ToolTip="Path to Python executable (e.g., 'python' or 'C:\Python311\python.exe')"/>
-                        
-                        <TextBlock Text="MCP Server Script Path:" Margin="0,10,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding ExternalMCPScriptPath, UpdateSourceTrigger=PropertyChanged}" 
-                                     Width="350" HorizontalAlignment="Left" 
-                                     ToolTip="Path to your MCP server Python script"/>
-                            <Button Grid.Column="1" Content="Browse" Margin="5,0,0,0" MinWidth="70"/>
-                        </Grid>
-                        
+
+                        <TextBlock Text="MCP Servers (JSON):" Margin="0,0,0,5"/>
+                        <TextBox x:Name="ExternalMCPServersBox"
+                                 Text="{Binding ExternalMCPServersJson, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                 FontFamily="Consolas" MinHeight="140" MinWidth="450" HorizontalAlignment="Left"
+                                 ToolTip="Standard mcpServers JSON. Add multiple servers under the mcpServers object."/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                            <Button Content="Validate" Click="ValidateExternalMCP_Click" MinWidth="80"/>
+                            <Button Content="Reset to NINA Default" Click="ResetExternalMCP_Click" Margin="10,0,0,0" MinWidth="140"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Useful servers:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <ComboBox x:Name="UsefulServersCombo" MinWidth="190" SelectedIndex="0">
+                                <ComboBoxItem Content="Fetch (web pages)" Tag="fetch"/>
+                                <ComboBoxItem Content="DuckDuckGo Search (free)" Tag="ddg-search"/>
+                                <ComboBoxItem Content="Brave Search (API key)" Tag="brave-search"/>
+                                <ComboBoxItem Content="Context7 docs (API key)" Tag="context7"/>
+                                <ComboBoxItem Content="Memory" Tag="memory"/>
+                                <ComboBoxItem Content="Sequential Thinking" Tag="sequential-thinking"/>
+                                <ComboBoxItem Content="Wikipedia" Tag="wikipedia"/>
+                                <ComboBoxItem Content="arXiv papers" Tag="arxiv"/>
+                                <ComboBoxItem Content="Time" Tag="time"/>
+                                <ComboBoxItem Content="Filesystem (NINA logs)" Tag="filesystem"/>
+                                <ComboBoxItem Content="Everything (test server)" Tag="everything"/>
+                            </ComboBox>
+                            <Button Content="Add to Config" Click="AddUsefulServer_Click" Margin="6,0,0,0" MinWidth="100"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ExternalMCPValidateResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
+
                         <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,10,0,0">
-                            <Run Text="Example: nina_advanced_api_mcp_server.py wraps NINA Advanced API as MCP tools."/><LineBreak/>
-                            <Run Text="Create custom servers for astronomy calculations, weather data, catalog queries, etc."/>
+                            <Run Text="Example (two servers):"/><LineBreak/>
+                            <Run Text="{}{ &quot;mcpServers&quot;: {"/><LineBreak/>
+                            <Run Text="    &quot;nina-api&quot;: { &quot;command&quot;: &quot;python&quot;, &quot;args&quot;: [&quot;nina_advanced_api_mcp_server.py&quot;] },"/><LineBreak/>
+                            <Run Text="    &quot;weather&quot;: { &quot;command&quot;: &quot;npx&quot;, &quot;args&quot;: [&quot;-y&quot;, &quot;weather-mcp&quot;], &quot;env&quot;: { &quot;API_KEY&quot;: &quot;...&quot; } }"/><LineBreak/>
+                            <Run Text="} }"/><LineBreak/>
+                            <Run Text="Tool name collisions across servers are auto-prefixed with the server name."/>
                         </TextBlock>
-                        
+
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Content="Documentation" Click="GetExternalMCPDocs_Click" MinWidth="120"/>
                             <Button Content="Example Server" Click="GetExternalMCPExample_Click" Margin="10,0,0,0" MinWidth="120"/>
@@ -254,6 +305,22 @@
                 </GroupBox>
 
                 <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontSize="11" Opacity="0.6">Tip: For beginners, start with GitHub Models (free) or Ollama (local). For best quality with equipment control, use Anthropic Claude with MCP enabled.</TextBlock>
+
+                <StackPanel Margin="0,16,0,0">
+                    <TextBlock
+                        Text="This plugin is developed and maintained independently by michelebergo."
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        Text="If you find it useful, you can support its continued development."
+                        TextWrapping="Wrap" />
+                    <Button
+                        Margin="0,12,0,0"
+                        Padding="12,6"
+                        HorizontalAlignment="Left"
+                        Command="{Binding OpenSupportPageCommand}"
+                        Content="☕ Support development" />
+                </StackPanel>
 
             </StackPanel>
         </ScrollViewer>

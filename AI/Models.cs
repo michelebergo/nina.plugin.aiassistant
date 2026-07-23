@@ -30,7 +30,12 @@ namespace NINA.Plugin.AIAssistant.AI
         /// <summary>
         /// Ollama - Local models, completely free
         /// </summary>
-        Ollama
+        Ollama,
+
+        /// <summary>
+        /// Mistral - Mistral AI (OpenAI-compatible API)
+        /// </summary>
+        Mistral
     }
 
     /// <summary>
@@ -67,6 +72,21 @@ namespace NINA.Plugin.AIAssistant.AI
         public Dictionary<string, object>? Metadata { get; set; }
         public double Temperature { get; set; } = 0.7;
         public int MaxTokens { get; set; } = 1000;
+
+        /// <summary>
+        /// Prior conversation turns (oldest first), excluding the current <see cref="Prompt"/>.
+        /// Providers prepend these so the model has multi-turn context.
+        /// </summary>
+        public List<AIChatTurn>? History { get; set; }
+    }
+
+    /// <summary>
+    /// A single prior turn in the conversation history.
+    /// </summary>
+    public class AIChatTurn
+    {
+        public string Role { get; set; } = "user"; // "user" or "assistant"
+        public string Content { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -135,6 +155,15 @@ namespace NINA.Plugin.AIAssistant.AI
                     new() { Id = "phi3", DisplayName = "Phi-3", Provider = provider, IsFree = true, Description = "Microsoft, small" },
                     new() { Id = "gemma2", DisplayName = "Gemma 2", Provider = provider, IsFree = true, Description = "Google, local" },
                 },
+                AIProviderType.Mistral => new List<AIModelInfo>
+                {
+                    new() { Id = "mistral-large-latest", DisplayName = "Mistral Large", Provider = provider, IsFree = false, Description = "Most capable (default)" },
+                    new() { Id = "mistral-medium-latest", DisplayName = "Mistral Medium", Provider = provider, IsFree = false, Description = "Balanced" },
+                    new() { Id = "mistral-small-latest", DisplayName = "Mistral Small", Provider = provider, IsFree = false, Description = "Fast, affordable" },
+                    new() { Id = "open-mistral-7b", DisplayName = "Open Mistral 7B", Provider = provider, IsFree = false, Description = "Open source" },
+                    new() { Id = "open-mixtral-8x7b", DisplayName = "Open Mixtral 8x7B", Provider = provider, IsFree = false, Description = "Mixture of experts" },
+                    new() { Id = "codestral-latest", DisplayName = "Codestral", Provider = provider, IsFree = false, Description = "Code-focused" },
+                },
                 _ => new List<AIModelInfo>()
             };
         }
@@ -147,7 +176,8 @@ namespace NINA.Plugin.AIAssistant.AI
                 AIProviderType.OpenAI,
                 AIProviderType.Anthropic,
                 AIProviderType.Google,
-                AIProviderType.Ollama
+                AIProviderType.Ollama,
+                AIProviderType.Mistral
             };
         }
 
@@ -160,6 +190,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 AIProviderType.Anthropic => "Anthropic Claude (Paid)",
                 AIProviderType.Google => "Google Gemini (Free tier)",
                 AIProviderType.Ollama => "Ollama (Local/Free)",
+                AIProviderType.Mistral => "Mistral AI (Paid)",
                 _ => provider.ToString()
             };
         }

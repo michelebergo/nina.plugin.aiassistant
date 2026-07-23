@@ -23,6 +23,32 @@ namespace NINA.Plugin.AIAssistant
 
         public static AIAssistantPlugin? Instance { get; private set; }
 
+        // Centralized external links (single point of truth; see .github/FUNDING.yml and README)
+        public const string BuyMeACoffeeUrl = "https://buymeacoffee.com/michelebergo";
+
+        public System.Windows.Input.ICommand OpenSupportPageCommand { get; } = new NINA.Core.Utility.RelayCommand(_ => OpenExternalUrl(BuyMeACoffeeUrl));
+
+        private static void OpenExternalUrl(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                return;
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = uri.AbsoluteUri,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Unable to open external URL: {uri}", ex);
+            }
+        }
+
         private AIProviderType _selectedProvider;
         public AIProviderType SelectedProviderInternal
         {
@@ -48,7 +74,10 @@ namespace NINA.Plugin.AIAssistant
         public bool IsAnthropicSelected => SelectedProviderInternal == AIProviderType.Anthropic;
         public bool IsGoogleSelected => SelectedProviderInternal == AIProviderType.Google;
         public bool IsOllamaSelected => SelectedProviderInternal == AIProviderType.Ollama;
-        public bool IsMCPProviderSelected => SelectedProviderInternal == AIProviderType.Anthropic || SelectedProviderInternal == AIProviderType.Google;
+        public bool IsMistralSelected => SelectedProviderInternal == AIProviderType.Mistral;
+        public bool IsMCPProviderSelected => SelectedProviderInternal == AIProviderType.Anthropic || 
+                                              SelectedProviderInternal == AIProviderType.Google || 
+                                              SelectedProviderInternal == AIProviderType.Ollama;
 
         [ImportingConstructor]
         public AIAssistantPlugin(IProfileService profileService, 
@@ -139,6 +168,12 @@ namespace NINA.Plugin.AIAssistant
                     Endpoint = OllamaEndpoint ?? "http://localhost:11434",
                     ModelId = OllamaModelId ?? "llama3.2"
                 },
+                AIProviderType.Mistral => new AIProviderConfig
+                {
+                    Provider = AIProviderType.Mistral,
+                    ApiKey = MistralApiKey,
+                    ModelId = MistralModelId ?? "mistral-large-latest"
+                },
                 _ => null
             };
         }
@@ -192,6 +227,7 @@ namespace NINA.Plugin.AIAssistant
                     AIProviderType.Anthropic => AnthropicModelId,
                     AIProviderType.Google => GoogleModelId,
                     AIProviderType.Ollama => OllamaModelId,
+                    AIProviderType.Mistral => MistralModelId,
                     _ => "Unknown Model"
                 };
             }
@@ -227,6 +263,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.GitHubModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.GitHub)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -255,6 +293,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.OpenAIModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.OpenAI)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -283,6 +323,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.AnthropicModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Anthropic)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -311,6 +353,8 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.GoogleModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Google)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -339,6 +383,38 @@ namespace NINA.Plugin.AIAssistant
                 Settings.Default.OllamaModelId = SanitizeModelId(value);
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Ollama)
+                    _ = InitializeAIProviderAsync();
+            }
+        }
+
+        #endregion
+
+        #region Mistral Settings
+
+        public string? MistralApiKey
+        {
+            get => Settings.Default.MistralApiKey;
+            set
+            {
+                Settings.Default.MistralApiKey = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Mistral)
+                    _ = InitializeAIProviderAsync();
+            }
+        }
+
+        public string? MistralModelId
+        {
+            get => SanitizeModelId(Settings.Default.MistralModelId ?? "mistral-large-latest");
+            set
+            {
+                Settings.Default.MistralModelId = SanitizeModelId(value);
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Mistral)
+                    _ = InitializeAIProviderAsync();
             }
         }
 
@@ -415,6 +491,21 @@ namespace NINA.Plugin.AIAssistant
             set
             {
                 Settings.Default.ExternalMCPScriptPath = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Standard mcpServers JSON configuration for one or more external MCP servers.
+        /// Example: { "mcpServers": { "weather": { "command": "python", "args": ["weather.py"] } } }
+        /// </summary>
+        public string ExternalMCPServersJson
+        {
+            get => Settings.Default.ExternalMCPServersJson;
+            set
+            {
+                Settings.Default.ExternalMCPServersJson = value;
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
             }

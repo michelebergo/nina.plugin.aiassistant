@@ -16,6 +16,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Header -->
@@ -270,6 +271,32 @@
                 </ScrollViewer>
             </Border>
 
+            <!-- Thinking / working indicator -->
+            <Border Grid.Row="2" Margin="0,5,0,0" Padding="10,6" CornerRadius="5"
+                    Background="{StaticResource SecondaryBackgroundBrush}"
+                    Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🤔" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock Text="AI is working" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text=" ●●●" FontSize="12" VerticalAlignment="Center" Foreground="Goldenrod">
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="TextBlock.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="0.25" To="1.0" Duration="0:0:0.6"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                    <TextBlock Text="(tool calls can take a while — click Stop to cancel)"
+                               FontSize="10" Opacity="0.6" VerticalAlignment="Center" Margin="8,0,0,0"
+                               Foreground="{StaticResource PrimaryBrush}"/>
+                </StackPanel>
+            </Border>
+
             <!-- Input Area -->
             <Grid Grid.Row="3" Margin="0,5,0,0">
                 <Grid.ColumnDefinitions>
@@ -278,8 +305,11 @@
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0" 
                          Text="{Binding UserMessage, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="False"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
                          VerticalContentAlignment="Center"
+                         VerticalScrollBarVisibility="Auto"
+                         MaxHeight="120"
                          Padding="10,8"
                          Margin="0,0,5,0"
                          Background="{StaticResource SecondaryBackgroundBrush}"

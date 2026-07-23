@@ -9,8 +9,10 @@ using NINA.Equipment.Interfaces.ViewModel;
 using NINA.WPF.Base.ViewModel;
 using NINA.Profile.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.Composition;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -209,6 +211,8 @@ namespace NINA.Plugin.AIAssistant
         
         public void Hide(object? o)
         {
+            _externalMcpManager?.Dispose();
+            _externalMcpManager = null;
             IsClosed = true;
         }
 
@@ -277,6 +281,7 @@ namespace NINA.Plugin.AIAssistant
 
         private readonly AIService? _aiService;
         private bool _mcpInitialized = false;
+        private ExternalMCPManager? _externalMcpManager;
         private CancellationTokenSource? _responseCancellationTokenSource;
 
         private async Task InitializeMCPIfNeeded()
@@ -362,9 +367,36 @@ namespace NINA.Plugin.AIAssistant
                     Logger.Warning("AIChatVM: Could not cast active provider to GoogleProvider");
                 }
             }
+            else if (_aiService?.ActiveProviderType == AIProviderType.Ollama)
+            {
+                var provider = _aiService.GetActiveProvider() as OllamaProvider;
+                if (provider != null)
+                {
+                    var mcpConfig = plugin.GetMCPConfig();
+                    Logger.Info($"AIChatVM: Initializing MCP for Ollama - Host: {mcpConfig.NinaHost}, Port: {mcpConfig.NinaPort}, Enabled: {mcpConfig.Enabled}");
+                    
+                    var success = await provider.EnableMCPAsync(mcpConfig);
+                    _mcpInitialized = success;
+                    
+                    if (success)
+                    {
+                        Logger.Info("AIChatVM: MCP initialized successfully for Ollama provider");
+                        StatusMessage = "🤖 MCP Connected (Ollama)";
+                    }
+                    else
+                    {
+                        Logger.Warning("AIChatVM: MCP initialization failed - check NINA Advanced API connection");
+                        StatusMessage = "⚠️ MCP connection failed";
+                    }
+                }
+                else
+                {
+                    Logger.Warning("AIChatVM: Could not cast active provider to OllamaProvider");
+                }
+            }
             else
             {
-                Logger.Info($"AIChatVM: MCP not supported for provider {_aiService?.ActiveProviderType}, only Anthropic and Google");
+                Logger.Info($"AIChatVM: MCP not supported for provider {_aiService?.ActiveProviderType}, only Anthropic, Google, and Ollama");
             }
         }
 
@@ -372,38 +404,60 @@ namespace NINA.Plugin.AIAssistant
         {
             try
             {
-                var pythonPath = plugin.ExternalMCPPythonPath;
-                var scriptPath = plugin.ExternalMCPScriptPath;
-                
-                if (string.IsNullOrEmpty(pythonPath) || string.IsNullOrEmpty(scriptPath))
+                // Parse the standard mcpServers JSON configuration (supports multiple servers).
+                var configs = ExternalMCPConfigParser.Parse(plugin.ExternalMCPServersJson);
+
+                // Backward-compatibility migration: if no JSON config but legacy single-server
+                // paths are set, synthesize one server config.
+                if (configs.Count == 0 && !string.IsNullOrWhiteSpace(plugin.ExternalMCPScriptPath))
+                {
+                    configs.Add(new ExternalMCPServerConfig
+                    {
+                        Name = "default",
+                        Command = string.IsNullOrWhiteSpace(plugin.ExternalMCPPythonPath) ? "python" : plugin.ExternalMCPPythonPath,
+                        Args = new System.Collections.Generic.List<string> { plugin.ExternalMCPScriptPath }
+                    });
+                }
+
+                if (configs.Count == 0)
                 {
                     Logger.Info("AIChatVM: External MCP not configured");
                     return;
                 }
-                
-                var externalMCP = new ExternalMCPClient();
-                var started = await externalMCP.StartServerAsync(pythonPath, scriptPath);
-                
-                if (started)
+
+                // Dispose any previous manager before starting a new one.
+                _externalMcpManager?.Dispose();
+                _externalMcpManager = null;
+
+                var manager = new ExternalMCPManager();
+                var anyStarted = await manager.StartAllAsync(configs);
+
+                if (anyStarted)
                 {
-                    Logger.Info($"AIChatVM: External MCP server started: {externalMCP.ServerName} v{externalMCP.ServerVersion}");
-                    
+                    _externalMcpManager = manager;
+                    Logger.Info($"AIChatVM: External MCP started: {manager.ConnectedCount} server(s) - {manager.ServerName}");
+
                     // Pass to active provider
                     if (_aiService?.ActiveProviderType == AIProviderType.Anthropic)
                     {
                         var provider = _aiService.GetActiveProvider() as AnthropicProvider;
-                        provider?.SetExternalMCP(externalMCP);
+                        provider?.SetExternalMCP(manager);
                     }
                     else if (_aiService?.ActiveProviderType == AIProviderType.Google)
                     {
                         var provider = _aiService.GetActiveProvider() as GoogleProvider;
-                        provider?.SetExternalMCP(externalMCP);
+                        provider?.SetExternalMCP(manager);
+                    }
+                    else if (_aiService?.ActiveProviderType == AIProviderType.Ollama)
+                    {
+                        var provider = _aiService.GetActiveProvider() as OllamaProvider;
+                        provider?.SetExternalMCP(manager);
                     }
                 }
                 else
                 {
-                    Logger.Warning("AIChatVM: Failed to start external MCP server");
-                    externalMCP.Dispose();
+                    Logger.Warning("AIChatVM: No external MCP servers started");
+                    manager.Dispose();
                 }
             }
             catch (Exception ex)
@@ -434,6 +488,7 @@ namespace NINA.Plugin.AIAssistant
                 AIProviderType.Anthropic => !string.IsNullOrEmpty(plugin.AnthropicApiKey),
                 AIProviderType.Google => !string.IsNullOrEmpty(plugin.GoogleApiKey),
                 AIProviderType.Ollama => true, // Ollama doesn't need API key
+                AIProviderType.Mistral => !string.IsNullOrEmpty(plugin.MistralApiKey),
                 _ => false
             };
 
@@ -479,7 +534,8 @@ namespace NINA.Plugin.AIAssistant
                 
                 var mcpEnabled = plugin.MCPEnabled;
                 var isMCPProvider = _aiService?.ActiveProviderType == AIProviderType.Anthropic || 
-                                    _aiService?.ActiveProviderType == AIProviderType.Google;
+                                    _aiService?.ActiveProviderType == AIProviderType.Google ||
+                                    _aiService?.ActiveProviderType == AIProviderType.Ollama;
                 
                 // Let MCP-capable providers (Anthropic, Google) use their own MCP system prompt
                 if (!mcpEnabled || !isMCPProvider)
@@ -506,12 +562,26 @@ Your expertise includes:
 Keep responses concise but accurate. Use proper astrophotography terminology.";
                 }
 
+                // Build conversation history (multi-turn context): include the FULL prior conversation,
+                // skipping only the welcome message (first) and the current user message (last).
+                var history = new List<AIChatTurn>();
+                if (Messages.Count > 2)
+                {
+                    history = Messages
+                        .Skip(1)                          // skip the welcome message
+                        .Take(Messages.Count - 2)         // exclude the current user message (last)
+                        .Where(m => !m.IsError && (m.Role == "user" || m.Role == "assistant"))
+                        .Select(m => new AIChatTurn { Role = m.Role, Content = m.Content })
+                        .ToList();
+                }
+
                 var request = new AIRequest
                 {
                     Prompt = userMsg,
                     SystemPrompt = systemPrompt,
                     MaxTokens = 1024,
-                    Temperature = 0.7
+                    Temperature = 0.7,
+                    History = history
                 };
 
                 try

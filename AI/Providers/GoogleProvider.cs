@@ -22,7 +22,7 @@ namespace NINA.Plugin.AIAssistant.AI
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;
         private NINAAdvancedAPIClient? _mcpClient;
-        private ExternalMCPClient? _externalMcpClient;
+        private IExternalMCPSource? _externalMcpClient;
         private MCPConfig? _mcpConfig;
         private bool _mcpEnabled;
         private const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -86,12 +86,12 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
-        /// Set external MCP client for additional tools
+        /// Set external MCP source (single server or multi-server manager) for additional tools
         /// </summary>
-        public void SetExternalMCP(ExternalMCPClient externalMcpClient)
+        public void SetExternalMCP(IExternalMCPSource externalMcpClient)
         {
             _externalMcpClient = externalMcpClient;
-            Logger.Info($"External MCP client set for Gemini: {_externalMcpClient.ServerName}");
+            Logger.Info($"External MCP source set for Gemini: {_externalMcpClient.ServerName}");
         }
 
         public async Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -129,6 +129,14 @@ namespace NINA.Plugin.AIAssistant.AI
             var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
             var systemInstruction = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
 
+            var contents = new List<object>();
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    contents.Add(new { role = turn.Role == "assistant" ? "model" : "user", parts = new[] { new { text = turn.Content } } });
+            }
+            contents.Add(new { role = "user", parts = new[] { new { text = request.Prompt } } });
+
             var requestBody = new
             {
                 system_instruction = new
@@ -138,16 +146,7 @@ namespace NINA.Plugin.AIAssistant.AI
                         new { text = systemInstruction }
                     }
                 },
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = request.Prompt }
-                        }
-                    }
-                },
+                contents,
                 generationConfig = new
                 {
                     temperature = request.Temperature,
@@ -217,7 +216,9 @@ namespace NINA.Plugin.AIAssistant.AI
                             {
                                 Properties = propDict,
                                 Required = tool["inputSchema"]?["required"]?.ToObject<List<string>>() ?? new List<string>()
-                            }
+                            },
+                            // Keep the full original schema so Gemini gets valid array 'items', nested objects, etc.
+                            RawInputSchema = (tool["inputSchema"] as JObject)?.DeepClone() as JObject
                         };
                         allTools.Add(mcpTool);
                     }
@@ -236,19 +237,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 name = t.Name,
                 description = t.Description,
-                parameters = new
-                {
-                    type = "object",
-                    properties = t.InputSchema.Properties.ToDictionary(
-                        p => p.Key,
-                        p => new 
-                        { 
-                            type = p.Value.Type, 
-                            description = p.Value.Description 
-                        }
-                    ),
-                    required = t.InputSchema.Required
-                }
+                parameters = BuildGeminiParameters(t)
             }).ToList();
 
             var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
@@ -256,14 +245,17 @@ namespace NINA.Plugin.AIAssistant.AI
             Logger.Debug($"GoogleProvider: Using system prompt: {systemInstruction.Substring(0, Math.Min(100, systemInstruction.Length))}...");
             
             var allToolResults = new List<string>();
-            var contents = new List<object>
+            var contents = new List<object>();
+            if (request.History != null)
             {
-                new
-                {
-                    role = "user",
-                    parts = new[] { new { text = request.Prompt } }
-                }
-            };
+                foreach (var turn in request.History)
+                    contents.Add(new { role = turn.Role == "assistant" ? "model" : "user", parts = new[] { new { text = turn.Content } } });
+            }
+            contents.Add(new
+            {
+                role = "user",
+                parts = new[] { new { text = request.Prompt } }
+            });
 
             int iterations = 0;
 
@@ -517,6 +509,95 @@ namespace NINA.Plugin.AIAssistant.AI
             }
         }
 
+        /// <summary>
+        /// Build the Gemini "parameters" schema for a tool. Prefers the full original JSON schema
+        /// (external tools) so arrays declare 'items' and nested objects keep 'properties'; falls back
+        /// to the simple property map for built-in tools.
+        /// </summary>
+        private object BuildGeminiParameters(MCPTool tool)
+        {
+            if (tool.RawInputSchema != null)
+            {
+                var sanitized = SanitizeGeminiSchema(tool.RawInputSchema);
+                // Gemini requires the top-level parameters to be an object schema.
+                if (!sanitized.ContainsKey("type"))
+                    sanitized["type"] = "object";
+                return sanitized;
+            }
+
+            var properties = new Dictionary<string, object>();
+            foreach (var p in tool.InputSchema.Properties)
+                properties[p.Key] = BuildGeminiProperty(p.Value);
+
+            return new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = properties,
+                ["required"] = tool.InputSchema.Required
+            };
+        }
+
+        private Dictionary<string, object> BuildGeminiProperty(MCPToolParameter param)
+        {
+            var type = string.IsNullOrEmpty(param.Type) ? "string" : param.Type;
+            var d = new Dictionary<string, object> { ["type"] = type };
+            if (!string.IsNullOrEmpty(param.Description))
+                d["description"] = param.Description!;
+            if (param.Enum != null && param.Enum.Count > 0)
+                d["enum"] = param.Enum;
+            // Gemini requires array parameters to declare their item type.
+            if (type.Equals("array", StringComparison.OrdinalIgnoreCase))
+                d["items"] = new Dictionary<string, object> { ["type"] = "string" };
+            return d;
+        }
+
+        /// <summary>
+        /// Recursively convert a JSON Schema into a Gemini-compatible schema, keeping only supported
+        /// keywords and guaranteeing arrays have 'items' and objects have 'properties'.
+        /// </summary>
+        private Dictionary<string, object> SanitizeGeminiSchema(JToken? node)
+        {
+            var result = new Dictionary<string, object>();
+            if (node is not JObject obj)
+            {
+                result["type"] = "string";
+                return result;
+            }
+
+            var type = obj["type"]?.ToString();
+            if (string.IsNullOrEmpty(type))
+                type = obj["properties"] != null ? "object" : "string";
+            result["type"] = type;
+
+            var desc = obj["description"]?.ToString();
+            if (!string.IsNullOrEmpty(desc))
+                result["description"] = desc!;
+
+            if (obj["enum"] is JArray enumVals)
+                result["enum"] = enumVals.Select(v => v.ToString()).ToList();
+
+            if (type == "object")
+            {
+                var outProps = new Dictionary<string, object>();
+                if (obj["properties"] is JObject props)
+                {
+                    foreach (var p in props.Properties())
+                        outProps[p.Name] = SanitizeGeminiSchema(p.Value);
+                }
+                result["properties"] = outProps;
+                if (obj["required"] is JArray req)
+                    result["required"] = req.Select(v => v.ToString()).ToList();
+            }
+            else if (type == "array")
+            {
+                result["items"] = obj["items"] != null
+                    ? SanitizeGeminiSchema(obj["items"])
+                    : new Dictionary<string, object> { ["type"] = "string" };
+            }
+
+            return result;
+        }
+
         private string GetMCPSystemPrompt()
         {
             return @"You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy) with DIRECT CONTROL over imaging equipment through the NINA Advanced API.
@@ -539,7 +620,9 @@ When the user asks to check equipment, get status, or perform ANY action:
 2. Report the actual results from the function
 3. Provide helpful interpretation of the data
 
-For example, if user says 'check equipment' or 'show status', USE nina_get_status function first. If user says 'connect all', USE nina_connect_all_equipment.";
+For example, if user says 'check equipment' or 'show status', USE nina_get_status function first. If user says 'connect all', USE nina_connect_all_equipment.
+
+ADDITIONAL EXTERNAL TOOLS: Besides the NINA equipment functions above, you may ALSO have extra tools from external MCP servers (for example: web page fetching, web search, filesystem access, time/almanac data). They appear in your available tool list, sometimes prefixed with a server name. ALWAYS use whatever tools are actually available to fulfil the user's request - e.g. use a fetch or search tool to look up targets, coordinates, weather, or catalog data online (sites like Telescopius, Stellarium, etc.). Before telling the user you cannot do something, CHECK your available tools and use them. Never claim you lack a capability if a matching tool is present.";
         }
 
         public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
