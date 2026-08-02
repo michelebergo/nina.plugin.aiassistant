@@ -18,11 +18,11 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.0.0")]
-[assembly: AssemblyFileVersion("2.5.0.0")]
+[assembly: AssemblyVersion("2.5.0.1")]
+[assembly: AssemblyFileVersion("2.5.0.1")]
 
 // Plugin metadata - aligned with NINA manifest standards
-[assembly: AssemblyMetadata("Identifier", "AI Assistant")]
+[assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 [assembly: AssemblyMetadata("Author", "Michele Bergo")]
 [assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.0")]
 [assembly: AssemblyMetadata("License", "MPL-2.0")]
@@ -33,7 +33,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("ScreenshotURL", "")]
 [assembly: AssemblyMetadata("AltScreenshotURL", "")]
 [assembly: AssemblyMetadata("ChangelogURL", "https://github.com/michelebergo/nina.plugin.aiassistant/releases")]
-[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,GitHub Models")]
+[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,GitHub Models,Mistral,Ollama,Orchestrator")]
 
 // Short description (required by NINA plugin manager)
 [assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control, dynamic model discovery, image analysis, and extensible tool framework for intelligent astrophotography automation")]
@@ -48,12 +48,13 @@ using System.Runtime.InteropServices;
 • Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging
 • Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
 
-🤖 5 AI PROVIDERS (Free to Advanced):
+🤖 6 AI PROVIDERS (Free to Advanced):
 • GitHub Models (FREE) - No credit card, great for learning
 • OpenAI GPT-4o/o1 - Most capable reasoning for complex planning
 • Anthropic Claude Sonnet 4.5 - Best for equipment control via MCP
 • Google Gemini 2.0 - Fast responses, MCP equipment control support
 • Ollama (Local) - Privacy-focused, works offline, no API costs
+• Mistral AI - European-hosted models for chat, reasoning and coding
 Dynamic model discovery ensures you always have latest AI capabilities.
 
 🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):
@@ -75,5 +76,6 @@ Control your entire observatory through conversation:
 • Built-in MCP Server via NINA Advanced API plugin
 • External MCP Servers for community tools
 • Dynamic model discovery and custom model IDs
+• Optional nina.autopilot Orchestrator dashboard integration
 
 Transform complex equipment control and imaging workflows into simple conversations.")]

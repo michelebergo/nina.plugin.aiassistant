@@ -1,7 +1,7 @@
 {
-  "Identifier": "AI Assistant",
+  "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
   "Name": "AI Assistant",
-  "Version": "2.4.1.2",
+  "Version": "2.5.0.1",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -11,10 +11,14 @@
   "Tags": [
     "AI",
     "Assistant",
+    "Chat",
+    "MCP",
     "Image Analysis",
     "Automation",
     "GitHub Models",
-    "Mistral"
+    "Mistral",
+    "Ollama",
+    "Orchestrator"
   ],
   "Description": {
     "short": {
@@ -25,6 +29,26 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.5.0.1",
+      "Date": "2026-08-02",
+      "Changes": [
+        "Real-time tool-calling progress feedback now shows the current iteration and tool in the chat UI",
+        "Added 90-second per-tool and 120-second external MCP read timeouts to prevent indefinite hangs",
+        "Improved Google Gemini diagnostics for HTTP errors, empty candidates, finish reasons, prompt feedback, and safety blocks",
+        "Hardened Anthropic built-in-to-external MCP routing with bounded execution and structured errors"
+      ]
+    },
+    {
+      "Version": "2.5.0.0",
+      "Date": "2026-07-23",
+      "Changes": [
+        "Added the optional nina.autopilot Orchestrator integration panel",
+        "Added configurable Orchestrator URL and polling interval settings",
+        "Added optional Buy Me a Coffee project support links",
+        "Updated release metadata for the Mistral AI provider"
+      ]
+    },
     {
       "Version": "2.4.1.2",
       "Date": "2026-06-27",

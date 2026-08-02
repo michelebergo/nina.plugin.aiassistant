@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0.1] - 2026-08-02
+
+### Added
+- **Real-time tool progress** - the chat activity indicator now reports the current tool-calling iteration and tool name for Anthropic, Google Gemini and Ollama.
+- **Bounded MCP execution** - Anthropic tool calls time out after 90 seconds and external MCP response reads after 120 seconds, preventing a stalled server from freezing the plugin indefinitely.
+
+### Fixed
+- **Google Gemini diagnostics** - HTTP failures, empty candidates, finish reasons, prompt feedback and safety blocks now produce actionable errors instead of a generic empty-response message.
+- **Anthropic tool routing** - built-in to external MCP fallback now handles timeouts and tool failures as structured results instead of leaking exceptions.
+- **NINA catalog metadata** - provider count, Mistral/Ollama/Orchestrator tags and the plugin identifier now match the generated public manifest.
+
+---
+
 ## [2.5.0.0] - 2026-07-23
 
 ### Added
 - 🤖 **Mistral AI provider** - Mistral models (default `mistral-large-latest`) join GitHub Models, OpenAI, Anthropic, Google and Ollama.
 - 🛰️ **Orchestrator integration panel** - optional integration with the nina.autopilot orchestrator dashboard (disabled by default; URL and poll interval configurable).
 - ☕ **Support the project** - optional Buy Me a Coffee link in the Options page, README and GitHub Sponsor button. Completely non-intrusive: no popups, no nags, no telemetry.
+
+---
 
 ## [2.4.1.2] - 2026-06-27
 
