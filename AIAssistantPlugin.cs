@@ -64,6 +64,7 @@ namespace NINA.Plugin.AIAssistant
                     RaisePropertyChanged(nameof(IsAnthropicSelected));
                     RaisePropertyChanged(nameof(IsGoogleSelected));
                     RaisePropertyChanged(nameof(IsOllamaSelected));
+                    RaisePropertyChanged(nameof(IsMistralSelected));
                     RaisePropertyChanged(nameof(IsMCPProviderSelected));
                 }
             }
