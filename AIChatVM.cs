@@ -501,7 +501,8 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                     SystemPrompt = systemPrompt,
                     MaxTokens = 1024,
                     Temperature = 0.7,
-                    History = history
+                    History = history,
+                    ProgressCallback = (msg) => StatusMessage = msg
                 };
 
                 try

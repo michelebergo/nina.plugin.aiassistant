@@ -281,6 +281,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 iterations++;
                 Logger.Info($"OllamaProvider: Tool iteration {iterations}");
+                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
 
                 var requestBody = new
                 {
@@ -342,6 +343,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     var toolInput = JsonConvert.DeserializeObject<Dictionary<string, object>>(toolArgsJson) ?? new Dictionary<string, object>();
 
                     Logger.Info($"[MCP] Executing tool: {toolName}");
+                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName} (iteration {iterations})");
                     Logger.Debug($"[MCP] Tool arguments: {toolArgsJson}");
 
                     // Try built-in first, then external

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NINA.Plugin.AIAssistant.AI
@@ -78,6 +79,12 @@ namespace NINA.Plugin.AIAssistant.AI
         /// Providers prepend these so the model has multi-turn context.
         /// </summary>
         public List<AIChatTurn>? History { get; set; }
+
+        /// <summary>
+        /// Optional progress callback invoked by providers during tool-calling iterations.
+        /// The string is a human-readable status (e.g. "🔧 Calling: nina_get_status (iteration 2)").
+        /// </summary>
+        public Action<string>? ProgressCallback { get; set; }
     }
 
     /// <summary>

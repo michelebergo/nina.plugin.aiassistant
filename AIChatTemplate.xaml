@@ -163,7 +163,7 @@
                     Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="🤔" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBlock Text="AI is working" FontSize="12" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" VerticalAlignment="Center"
                                Foreground="{StaticResource PrimaryBrush}"/>
                     <TextBlock Text=" ●●●" FontSize="12" VerticalAlignment="Center" Foreground="Goldenrod">
                         <TextBlock.Triggers>

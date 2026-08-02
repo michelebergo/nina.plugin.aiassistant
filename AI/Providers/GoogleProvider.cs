@@ -161,6 +161,12 @@ namespace NINA.Plugin.AIAssistant.AI
             var response = await _httpClient!.PostAsync(url, content, cancellationToken);
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
 
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.Error($"GoogleProvider: Standard request API error: {response.StatusCode} - {responseContent}");
+                return new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
+            }
+
             return ParseResponse(responseContent, modelId, response.Headers);
         }
 
@@ -263,6 +269,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 iterations++;
                 Logger.Info($"GoogleProvider: Function calling iteration {iterations}");
+                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
                 
                 var requestBody = new
                 {
@@ -304,12 +311,21 @@ namespace NINA.Plugin.AIAssistant.AI
                 }
 
                 var candidate = candidates[0];
+                var finishReason = candidate["finishReason"]?.ToString();
                 var contentBlock = candidate["content"];
                 var parts = contentBlock?["parts"] as JArray;
 
                 if (parts == null || parts.Count == 0)
                 {
-                    return new AIResponse { Success = false, Error = "Empty response from Gemini" };
+                    var promptFeedback = jsonResponse["promptFeedback"]?.ToString();
+                    var safetyRatings = candidate["safetyRatings"]?.ToString();
+                    Logger.Error($"GoogleProvider: Gemini returned no content. finishReason={finishReason}, promptFeedback={promptFeedback}, safetyRatings={safetyRatings}, response={responseContent}");
+                    var detail = finishReason ?? "Unknown";
+                    if (!string.IsNullOrEmpty(promptFeedback))
+                        detail += $" | Prompt feedback: {promptFeedback}";
+                    if (!string.IsNullOrEmpty(safetyRatings))
+                        detail += $" | Safety: {safetyRatings}";
+                    return new AIResponse { Success = false, Error = $"Empty response from Gemini (finishReason: {detail})" };
                 }
 
                 // Add model response to conversation
@@ -355,6 +371,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     var functionArgs = functionCall["args"]?.ToObject<Dictionary<string, object>>();
 
                     Logger.Info($"[MCP] Executing function: {functionName}");
+                    request.ProgressCallback?.Invoke($"🔧 Calling: {functionName} (iteration {iterations})");
                     Logger.Debug($"[MCP] Function arguments: {(functionArgs != null ? JsonConvert.SerializeObject(functionArgs) : "null")}");
                     
                     // Try built-in first, then external
@@ -448,8 +465,24 @@ namespace NINA.Plugin.AIAssistant.AI
         {
             var jsonResponse = JObject.Parse(responseContent);
             var candidates = jsonResponse["candidates"] as JArray;
-            var messageContent = candidates?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
-            
+
+            if (candidates == null || candidates.Count == 0)
+            {
+                var promptFeedback = jsonResponse["promptFeedback"]?.ToString();
+                Logger.Error($"GoogleProvider: ParseResponse - no candidates. promptFeedback={promptFeedback}, response={responseContent}");
+                return new AIResponse { Success = false, Error = $"No response from Gemini (promptFeedback: {promptFeedback ?? "none"})" };
+            }
+
+            var candidate = candidates[0];
+            var finishReason = candidate["finishReason"]?.ToString();
+            var messageContent = candidate["content"]?["parts"]?[0]?["text"]?.ToString();
+
+            if (string.IsNullOrEmpty(messageContent))
+            {
+                var safetyRatings = candidate["safetyRatings"]?.ToString();
+                Logger.Error($"GoogleProvider: ParseResponse - empty text. finishReason={finishReason}, safetyRatings={safetyRatings}, response={responseContent}");
+            }
+
             var usage = jsonResponse["usageMetadata"];
             var promptTokens = usage?["promptTokenCount"]?.Value<int>() ?? 0;
             var candidatesTokens = usage?["candidatesTokenCount"]?.Value<int>() ?? 0;

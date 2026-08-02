@@ -271,6 +271,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 iterations++;
                 Logger.Info($"AnthropicProvider: Tool iteration {iterations}");
+                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
                 
                 var requestBody = new
                 {
@@ -378,34 +379,46 @@ namespace NINA.Plugin.AIAssistant.AI
                     var toolInput = toolUse["input"]?.ToObject<Dictionary<string, object>>();
 
                     Logger.Info($"[MCP] Executing tool: {toolName}");
+                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName} (iteration {iterations})");
                     Logger.Debug($"[MCP] Tool ID: {toolId}");
                     Logger.Debug($"[MCP] Tool arguments: {(toolInput != null ? JsonConvert.SerializeObject(toolInput) : "null")}");
                     
-                    var result = await _mcpClient.InvokeToolAsync(toolName, toolInput, cancellationToken);
-
-                    // If the tool isn't a built-in NINA tool, route it to the external MCP source.
+                    MCPToolResult result;
                     bool isExternal = false;
-                    if (!result.Success && (result.Error?.Contains("Unknown tool") ?? false)
-                        && _externalMcpClient != null && _externalMcpClient.IsConnected)
+                    try
                     {
-                        try
+                        using var toolCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        toolCts.CancelAfter(TimeSpan.FromSeconds(90));
+
+                        result = await _mcpClient.InvokeToolAsync(toolName, toolInput, toolCts.Token);
+
+                        // If the tool isn't a built-in NINA tool, route it to the external MCP source.
+                        if (!result.Success && (result.Error?.Contains("Unknown tool") ?? false))
                         {
-                            var externalResult = await _externalMcpClient.CallToolAsync(
-                                toolName,
-                                JObject.FromObject(toolInput ?? new Dictionary<string, object>()),
-                                cancellationToken);
-                            result = new MCPToolResult
+                            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
                             {
-                                Success = externalResult["content"] != null && externalResult["error"] == null,
-                                Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
-                                Error = externalResult["error"]?.ToString()
-                            };
-                            isExternal = true;
+                                request.ProgressCallback?.Invoke($"🔧 Calling external: {toolName} (iteration {iterations})");
+                                var externalResult = await _externalMcpClient.CallToolAsync(
+                                    toolName,
+                                    JObject.FromObject(toolInput ?? new Dictionary<string, object>()),
+                                    toolCts.Token);
+                                result = new MCPToolResult
+                                {
+                                    Success = externalResult["content"] != null && externalResult["error"] == null,
+                                    Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
+                                    Error = externalResult["error"]?.ToString()
+                                };
+                                isExternal = true;
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            result = new MCPToolResult { Success = false, Error = ex.Message };
-                        }
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        result = new MCPToolResult { Success = false, Error = $"Tool '{toolName}' timed out after 90 seconds" };
+                    }
+                    catch (Exception ex)
+                    {
+                        result = new MCPToolResult { Success = false, Error = ex.Message };
                     }
                     
                     Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}{(isExternal ? " (External)" : " (Built-in)")}");
@@ -427,6 +440,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     };
                 }).ToList();
 
+                request.ProgressCallback?.Invoke($"⏳ Waiting for {toolTasks.Count} tool result(s)...");
                 var completedTasks = await Task.WhenAll(toolTasks);
                 var toolResults = new List<object>();
 

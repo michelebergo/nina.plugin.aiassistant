@@ -207,8 +207,20 @@ namespace NINA.Plugin.AIAssistant.MCP
                 await _stdin.WriteLineAsync(requestLine);
                 await _stdin.FlushAsync();
 
-                // Read response (may need timeout handling)
-                var responseLine = await _stdout.ReadLineAsync();
+                // Read response with a timeout. Without this, a hung MCP server (e.g. one stuck in
+                // an HTTP retry loop) blocks ReadLineAsync forever, freezing the entire plugin.
+                using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                readCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+                string? responseLine;
+                try
+                {
+                    responseLine = await _stdout.ReadLineAsync(readCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    throw new TimeoutException($"MCP server '{ServerName}' did not respond within 120 seconds (tool may be stuck in a retry loop)");
+                }
 
                 if (string.IsNullOrEmpty(responseLine))
                 {
