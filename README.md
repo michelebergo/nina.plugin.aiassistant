@@ -5,6 +5,7 @@
 ![NINA 3.x](https://img.shields.io/badge/NINA-3.x-blue?style=flat-square)
 ![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square)
 ![License](https://img.shields.io/badge/License-MPL--2.0-green?style=flat-square)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/michelebergo)
 
 ## Features
 
@@ -109,6 +110,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## Support the project
+
+This plugin is developed and maintained independently in my free time.
+
+If it is useful for your astrophotography or automation workflow, you can support its continued development:
+
+[☕ Support development on Buy Me a Coffee](https://buymeacoffee.com/michelebergo)
+
+Your support helps cover development tools, testing hardware, hosting and future features.
 
 ## License
 

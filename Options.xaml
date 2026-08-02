@@ -280,7 +280,47 @@
                     </StackPanel>
                 </GroupBox>
 
+                <!-- Phase 5 — nina.autopilot orchestrator connection -->
+                <GroupBox Header="🛰 Autopilot Connection (nina.autopilot)" Margin="0,0,0,10">
+                    <StackPanel Margin="5">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,0,0,8">
+                            <Run Text="Connect this plugin to a running nina.autopilot orchestrator. When enabled, a status panel appears at the top of the AI Assistant chat showing current phase, target, LLM budget, recent events, and an E-STOP button."/><LineBreak/>
+                            <Run Text="The orchestrator runs separately (see github.com/michelebergo/nina.autopilot). Default URL points at the orchestrator's web dashboard on the same machine."/>
+                        </TextBlock>
+                        <CheckBox Content="Enable orchestrator status panel"
+                                  IsChecked="{Binding OrchestratorEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="Dashboard URL:" Margin="0,0,0,3"/>
+                        <TextBox Text="{Binding OrchestratorUrl, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="350" HorizontalAlignment="Left"
+                                 ToolTip="The orchestrator dashboard URL (typically http://127.0.0.1:8765 on the same PC, or http://&lt;tailscale-ip&gt;:8765 over Tailscale)"/>
+                        <TextBlock Text="Poll interval (seconds):" Margin="0,8,0,3"/>
+                        <TextBox Text="{Binding OrchestratorPollIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="80" HorizontalAlignment="Left"
+                                 ToolTip="How often the panel refreshes from /api/status and /api/events. 5s is a good default; lower polls more aggressively."/>
+                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
+                            <Run Text="The panel POSTs to /api/estop when the E-STOP button is clicked. This will stop the running sequence, close the dome, park the mount, warm the camera, and end the session."/>
+                        </TextBlock>
+                    </StackPanel>
+                </GroupBox>
+
                 <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontSize="11" Opacity="0.6">Tip: For beginners, start with GitHub Models (free) or Ollama (local). For best quality with equipment control, use Anthropic Claude with MCP enabled.</TextBlock>
+
+                <StackPanel Margin="0,16,0,0">
+                    <TextBlock
+                        Text="This plugin is developed and maintained independently by michelebergo."
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        Text="If you find it useful, you can support its continued development."
+                        TextWrapping="Wrap" />
+                    <Button
+                        Margin="0,12,0,0"
+                        Padding="12,6"
+                        HorizontalAlignment="Left"
+                        Command="{Binding OpenSupportPageCommand}"
+                        Content="☕ Support development" />
+                </StackPanel>
 
             </StackPanel>
         </ScrollViewer>

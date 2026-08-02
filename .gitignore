@@ -67,3 +67,4 @@ Backup*/
 UpgradeLog*.XML
 UpgradeLog*.htm
 inspect_nina.csx
+.claude/settings.local.json

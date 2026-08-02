@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:NINA.Plugin.AIAssistant"
+    xmlns:orchestrator="clr-namespace:NINA.Plugin.AIAssistant.Orchestrator"
     xmlns:ninastyle="clr-namespace:NINA.WPF.Base.View;assembly=NINA.WPF.Base">
 
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -11,6 +12,7 @@
     <DataTemplate DataType="{x:Type local:AIChatVM}">
         <Grid Margin="5">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -100,10 +102,122 @@
                 </Grid>
             </Border>
 
+            <!-- Phase 5 — Orchestrator status panel (visible only when enabled) -->
+            <Border Grid.Row="1"
+                    Background="{StaticResource SecondaryBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="10,8"
+                    Margin="0,0,0,5"
+                    Visibility="{Binding OrchestratorEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel DataContext="{Binding OrchestratorVM}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🛰 Autopilot:"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <Border Background="{StaticResource TertiaryBackgroundBrush}"
+                                        CornerRadius="3" Padding="6,2"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,8,0">
+                                    <TextBlock Text="{Binding Phase}"
+                                               FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource PrimaryBrush}"/>
+                                </Border>
+                                <TextBlock Text="{Binding TargetSummary}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           Opacity="0.85"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding BudgetText}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource PrimaryBrush}"
+                                       Opacity="0.75"
+                                       Margin="0,4,0,0"
+                                       Visibility="{Binding HasBudget, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <TextBlock Text="{Binding ConnectionError}"
+                                       FontSize="10"
+                                       Foreground="{StaticResource NotificationErrorBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,3,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="↻"
+                                    Command="{Binding RefreshCommand}"
+                                    ToolTip="Refresh status now"
+                                    MinWidth="30" Padding="5,3"
+                                    Margin="0,0,5,0"/>
+                            <Button Content="🛑 E-STOP"
+                                    Command="{Binding EstopCommand}"
+                                    Background="#da3633" Foreground="White"
+                                    FontWeight="Bold"
+                                    Padding="10,4"/>
+                        </StackPanel>
+                    </Grid>
+                    <Expander Header="Recent events" Margin="0,6,0,0" FontSize="10"
+                              Foreground="{StaticResource PrimaryBrush}">
+                        <ItemsControl ItemsSource="{Binding Events}"
+                                      MaxHeight="120" Margin="0,3,0,0">
+                            <ItemsControl.Template>
+                                <ControlTemplate>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type orchestrator:OrchestratorEventRow}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Timestamp}"
+                                                   FontSize="10" Opacity="0.55"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Kind}"
+                                                   FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Summary}"
+                                                   FontSize="10"
+                                                   Opacity="0.75"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource PrimaryBrush}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Expander>
+                </StackPanel>
+            </Border>
+
             <!-- Chat Messages -->
-            <Border Grid.Row="1" 
-                    BorderBrush="{StaticResource BorderBrush}" 
-                    BorderThickness="1" 
+            <Border Grid.Row="2"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
                     CornerRadius="5"
                     Background="{StaticResource BackgroundBrush}">
                 <ScrollViewer x:Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto" ScrollChanged="ChatScrollViewer_ScrollChanged">

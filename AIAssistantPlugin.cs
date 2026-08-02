@@ -11,6 +11,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using NINA.Plugin.AIAssistant.AI;
+using NINA.Plugin.AIAssistant.Orchestrator;
 
 namespace NINA.Plugin.AIAssistant
 {
@@ -21,6 +22,32 @@ namespace NINA.Plugin.AIAssistant
         private readonly AIService aiService;
 
         public static AIAssistantPlugin? Instance { get; private set; }
+
+        // Centralized external links (single point of truth; see .github/FUNDING.yml and README)
+        public const string BuyMeACoffeeUrl = "https://buymeacoffee.com/michelebergo";
+
+        public System.Windows.Input.ICommand OpenSupportPageCommand { get; } = new NINA.Core.Utility.RelayCommand(_ => OpenExternalUrl(BuyMeACoffeeUrl));
+
+        private static void OpenExternalUrl(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                return;
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = uri.AbsoluteUri,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Unable to open external URL: {uri}", ex);
+            }
+        }
 
         private AIProviderType _selectedProvider;
         public AIProviderType SelectedProviderInternal
@@ -483,6 +510,61 @@ namespace NINA.Plugin.AIAssistant
                 RaisePropertyChanged();
             }
         }
+
+        #endregion
+
+        #region Orchestrator (nina.autopilot) Integration — Phase 5
+
+        public bool OrchestratorEnabled
+        {
+            get => Settings.Default.OrchestratorEnabled;
+            set
+            {
+                if (Settings.Default.OrchestratorEnabled == value) return;
+                Settings.Default.OrchestratorEnabled = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                OrchestratorSettingsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public string OrchestratorUrl
+        {
+            get => Settings.Default.OrchestratorUrl ?? "http://127.0.0.1:8765";
+            set
+            {
+                var normalized = string.IsNullOrWhiteSpace(value) ? "http://127.0.0.1:8765" : value.Trim();
+                if (Settings.Default.OrchestratorUrl == normalized) return;
+                Settings.Default.OrchestratorUrl = normalized;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                OrchestratorSettingsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public int OrchestratorPollIntervalSeconds
+        {
+            get
+            {
+                var v = Settings.Default.OrchestratorPollIntervalSeconds;
+                return v < 1 ? 5 : v;
+            }
+            set
+            {
+                var clamped = value < 1 ? 1 : value;
+                if (Settings.Default.OrchestratorPollIntervalSeconds == clamped) return;
+                Settings.Default.OrchestratorPollIntervalSeconds = clamped;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                OrchestratorSettingsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Fires when any orchestrator setting changes so AIChatVM can
+        /// reconfigure (or rebuild) its OrchestratorStatusViewModel.
+        /// </summary>
+        public event EventHandler? OrchestratorSettingsChanged;
 
         #endregion
 
