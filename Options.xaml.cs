@@ -685,19 +685,11 @@ namespace NINA.Plugin.AIAssistant
             }
         }
 
-        private void MistralModel_Loaded(object sender, RoutedEventArgs e)
+        private async void MistralModel_Loaded(object sender, RoutedEventArgs e)
         {
             if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
             {
-                var models = AvailableModels.GetModels(AIProviderType.Mistral);
-                comboBox.Items.Clear();
-                foreach (var model in models)
-                {
-                    var item = new ComboBoxItem { Content = model.Id };
-                    if (model.Id == plugin.MistralModelId)
-                        item.IsSelected = true;
-                    comboBox.Items.Add(item);
-                }
+                await LoadModelsForProvider(AIProviderType.Mistral, plugin);
             }
         }
 
