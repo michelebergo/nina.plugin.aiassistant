@@ -880,7 +880,7 @@ namespace NINA.Plugin.AIAssistant
 
             return tag switch
             {
-                "fetch" => ("fetch", Cfg("uvx", new[] { "mcp-server-fetch", "--ignore-robots-txt" }, true)),
+                "fetch" => ("fetch", Cfg("uvx", new[] { "--with", "mcp<2.0.0", "mcp-server-fetch", "--ignore-robots-txt" }, true)),
                 "ddg-search" => ("ddg-search", Cfg("uvx", new[] { "duckduckgo-mcp-server" }, true)),
                 "brave-search" => ("brave-search", Cfg("npx", new[] { "-y", "@modelcontextprotocol/server-brave-search" }, false, new[] { ("BRAVE_API_KEY", "") })),
                 "context7" => ("context7", Cfg("npx", new[] { "-y", "@upstash/context7-mcp" }, false, new[] { ("CONTEXT7_API_KEY", "") })),

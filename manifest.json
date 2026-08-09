@@ -1,7 +1,7 @@
 {
   "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
   "Name": "AI Assistant",
-  "Version": "2.5.0.2",
+  "Version": "2.5.0.3",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -29,6 +29,13 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.5.0.3",
+      "Date": "2026-08-09",
+      "Changes": [
+        "Fixed MCP fetch server startup by pinning Python MCP SDK to <2.0.0 (uvx --with \"mcp<2.0.0\" mcp-server-fetch ...), working around the McpError -> MCPError rename in SDK 2.0.0"
+      ]
+    },
     {
       "Version": "2.5.0.2",
       "Date": "2026-08-02",

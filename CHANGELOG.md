@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0.3] - 2026-08-09
+
+### Fixed
+- **MCP fetch server startup** - the built-in `fetch` MCP server config now pins the Python MCP SDK to `<2.0.0` (`uvx --with "mcp<2.0.0" mcp-server-fetch ...`). This works around a breaking rename (`McpError` → `MCPError`) in MCP SDK 2.0.0 that prevented the server from starting on fresh installs. Drop the pin once modelcontextprotocol/servers#4560 is resolved.
+
+---
+
 ## [2.5.0.2] - 2026-08-02
 
 ### Fixed
