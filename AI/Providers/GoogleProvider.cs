@@ -125,8 +125,9 @@ namespace NINA.Plugin.AIAssistant.AI
 
         private async Task<AIResponse> SendStandardRequestAsync(AIRequest request, CancellationToken cancellationToken)
         {
-            // Latest: gemini-2.0-flash-001 (stable multimodal), gemini-2.5-pro (most capable)
-            var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
+            // The alias tracks Google's latest stable Flash release; concrete version IDs
+            // get retired out from under a hardcoded fallback (gemini-2.0-flash-001 did).
+            var modelId = _config!.ModelId ?? "gemini-flash-latest";
             var systemInstruction = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
 
             var contents = new List<object>();
@@ -246,7 +247,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 parameters = BuildGeminiParameters(t)
             }).ToList();
 
-            var modelId = _config!.ModelId ?? "gemini-2.0-flash-001";
+            var modelId = _config!.ModelId ?? "gemini-flash-latest";
             var systemInstruction = request.SystemPrompt ?? GetMCPSystemPrompt();
             Logger.Debug($"GoogleProvider: Using system prompt: {systemInstruction.Substring(0, Math.Min(100, systemInstruction.Length))}...");
             
@@ -733,11 +734,14 @@ ADDITIONAL EXTERNAL TOOLS: Besides the NINA equipment functions above, you may A
         {
             return new[]
             {
-                "gemini-2.0-flash-001",
-                "gemini-2.5-pro",
-                "gemini-2.5-flash",
-                "gemini-1.5-flash",
-                "gemini-1.5-pro"
+                // Static fallback, used only when the live model list cannot be fetched.
+                // The -latest alias tracks Google's newest stable Flash and never expires;
+                // the concrete IDs below were current as of August 2026.
+                "gemini-flash-latest",
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+                "gemini-3.5-flash-lite",
+                "gemini-2.5-flash"
             };
         }
     }

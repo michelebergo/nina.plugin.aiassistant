@@ -13,7 +13,7 @@
                 <TextBlock Text="AI Assistant Configuration" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
                 <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" FontSize="12" Opacity="0.7">
                     <Run Text="Intelligent AI-powered assistant for NINA with advanced capabilities:"/><LineBreak/>
-                    <Run Text="• Multiple AI Providers: GitHub Models (free), OpenAI, Anthropic Claude, Google Gemini, Ollama (local)"/><LineBreak/>
+                    <Run Text="• Multiple AI Providers: Ollama (local, free), Google Gemini, Mistral, OpenAI, Anthropic Claude"/><LineBreak/>
                     <Run Text="• MCP Equipment Control: Natural language control of cameras, mounts, focusers, filter wheels, guiding, platesolving"/><LineBreak/>
                     <Run Text="• Image Analysis: Intelligent feedback on captures, HFR, star detection, and quality assessment"/><LineBreak/>
                     <Run Text="• Dynamic Model Discovery: Automatically fetches latest available AI models from providers"/><LineBreak/>
@@ -27,7 +27,7 @@
                                   Loaded="ProviderSelector_Loaded"
                                   SelectionChanged="ProviderSelector_Changed" 
                                   HorizontalAlignment="Left" MinWidth="250">
-                            <ComboBoxItem Content="GitHub Models (FREE)" Tag="GitHub"/>
+                            <ComboBoxItem Content="GitHub Models (RETIRED)" Tag="GitHub"/>
                             <ComboBoxItem Content="OpenAI (PAID)" Tag="OpenAI"/>
                             <ComboBoxItem Content="Anthropic Claude (MCP)" Tag="Anthropic"/>
                             <ComboBoxItem Content="Google Gemini (FREE)" Tag="Google"/>
@@ -39,9 +39,9 @@
                 </GroupBox>
 
                 <!-- GitHub Models -->
-                <GroupBox Header="GitHub Models (FREE)" Margin="0,0,0,10" Visibility="{Binding IsGitHubSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <GroupBox Header="GitHub Models (RETIRED)" Margin="0,0,0,10" Visibility="{Binding IsGitHubSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Margin="5">
-                        <TextBlock Text="Free tier via GitHub token - No credit card required" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
+                        <TextBlock Text="GitHub retired this service on July 30, 2026 — it no longer works for anyone. Switch to Ollama (local, free), Google Gemini or Mistral (free tiers)." FontSize="11" Foreground="Salmon" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <TextBlock Text="GitHub Personal Access Token:" Margin="0,0,0,5"/>
                         <Grid>
                             <Grid.ColumnDefinitions>

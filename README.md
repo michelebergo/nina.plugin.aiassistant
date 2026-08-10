@@ -9,7 +9,7 @@
 
 ## Features
 
-- **Multi-Provider AI**: GitHub Models (free), OpenAI, Anthropic Claude, Google Gemini, Ollama (local), Mistral AI
+- **Multi-Provider AI**: Ollama (local, free), Google Gemini, Mistral AI, OpenAI, Anthropic Claude — (GitHub Models was retired by GitHub on July 30, 2026)
 - **MCP Equipment Control**: Natural language control of cameras, mounts, focusers, filter wheels, guiders, dome. Now supports Anthropic, Google, AND Ollama providers
 - **Dynamic Model Discovery**: Automatic detection of latest AI models from each provider
 - **Image Analysis**: FITS header reading, HFR/FWHM monitoring, star detection, quality assessment
@@ -33,7 +33,7 @@
 
 1. Go to **Options → Plugins → AI Assistant**
 2. Select your AI provider
-3. Enter your API key (not required for GitHub Models free tier or Ollama)
+3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers)
 4. Start chatting in the dockable AI panel
 
 ## Building from Source

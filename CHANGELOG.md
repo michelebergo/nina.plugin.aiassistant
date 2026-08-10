@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1.0] - 2026-08-10
+
+### Fixed
+- **Google Gemini "Test" button** - it called a hardcoded `gemini-2.0-flash-001`, which Google has retired, so the test failed even when the selected model worked fine. The test now uses the model you actually selected (#7 reporters migrating to Gemini hit this first).
+- **Stale Gemini defaults** - all fallbacks now use the `gemini-flash-latest` alias, which always points to Google's latest stable Flash release and therefore cannot expire; the static model list (used only when the live fetch fails) was refreshed to the current generation (3.6/3.5/2.5).
+
+### Changed
+- **GitHub Models provider marked as retired** (fixes #7) - GitHub shut the service down for all customers on July 30, 2026, which is why it returns 404 everywhere. The provider no longer calls the dead endpoint: the chat, the options panel and the Test button now show a clear explanation and point to the free alternatives already included (Ollama local, Google Gemini and Mistral free tiers). Existing configurations keep loading without errors.
+
+---
+
 ## [2.5.0.3] - 2026-08-09
 
 ### Fixed

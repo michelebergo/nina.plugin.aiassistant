@@ -149,10 +149,13 @@ namespace NINA.Plugin.AIAssistant.AI
                 },
                 AIProviderType.Google => new List<AIModelInfo>
                 {
-                    new() { Id = "gemini-2.0-flash-001", DisplayName = "Gemini 2.0 Flash", Provider = provider, IsFree = true, Description = "Latest stable (default)" },
-                    new() { Id = "gemini-2.5-pro", DisplayName = "Gemini 2.5 Pro", Provider = provider, IsFree = true, Description = "Most capable" },
-                    new() { Id = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash", Provider = provider, IsFree = true, Description = "Fast, free tier" },
-                    new() { Id = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro", Provider = provider, IsFree = true, Description = "Previous generation" },
+                    // Gemini 1.x/2.0 were shut down by Google in 2026; the -latest alias
+                    // tracks the newest stable Flash so the default cannot expire again.
+                    new() { Id = "gemini-flash-latest", DisplayName = "Gemini Flash (latest)", Provider = provider, IsFree = true, Description = "Always the latest stable Flash (default)" },
+                    new() { Id = "gemini-3.6-flash", DisplayName = "Gemini 3.6 Flash", Provider = provider, IsFree = true, Description = "Current stable, Aug 2026" },
+                    new() { Id = "gemini-3.5-flash", DisplayName = "Gemini 3.5 Flash", Provider = provider, IsFree = true, Description = "Stable" },
+                    new() { Id = "gemini-3.5-flash-lite", DisplayName = "Gemini 3.5 Flash Lite", Provider = provider, IsFree = true, Description = "Fastest, cheapest" },
+                    new() { Id = "gemini-2.5-flash", DisplayName = "Gemini 2.5 Flash", Provider = provider, IsFree = true, Description = "Previous generation" },
                 },
                 AIProviderType.Ollama => new List<AIModelInfo>
                 {

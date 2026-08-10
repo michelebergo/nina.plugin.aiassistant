@@ -221,49 +221,16 @@ namespace NINA.Plugin.AIAssistant
             });
         }
 
-        private async void TestGitHubKey_Click(object sender, RoutedEventArgs e)
+        private void TestGitHubKey_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
-            if (button?.DataContext is not AIAssistantPlugin plugin) return;
-
-            var resultTextBlock = FindTextBlock("GitHubTestResult", button);
+            var resultTextBlock = button != null ? FindTextBlock("GitHubTestResult", button) : null;
             if (resultTextBlock == null) return;
 
-            if (string.IsNullOrWhiteSpace(plugin.GitHubApiKey))
-            {
-                ShowResult(resultTextBlock, "⚠️ Please enter an API token first", Colors.Orange);
-                return;
-            }
-
-            button.IsEnabled = false;
-            ShowResult(resultTextBlock, "🔄 Testing API key...", Colors.White);
-
-            try
-            {
-                var endpoint = new Uri("https://models.inference.ai.azure.com");
-                var credential = new AzureKeyCredential(plugin.GitHubApiKey);
-                var client = new ChatCompletionsClient(endpoint, credential);
-
-                var options = new ChatCompletionsOptions
-                {
-                    Model = plugin.GitHubModelId ?? "gpt-4o",
-                    Messages = { new ChatRequestUserMessage("Say 'OK'") }
-                };
-                // GitHub Models uses max_completion_tokens instead of max_tokens
-                options.AdditionalProperties["max_completion_tokens"] = BinaryData.FromObjectAsJson(5);
-
-                var response = await client.CompleteAsync(options);
-
-                ShowResult(resultTextBlock, $"✅ GitHub API key is valid!", Colors.LightGreen);
-            }
-            catch (Exception ex)
-            {
-                HandleApiError(resultTextBlock, ex);
-            }
-            finally
-            {
-                button.IsEnabled = true;
-            }
+            // The service was retired by GitHub on 2026-07-30 for every customer, with or
+            // without a valid token: testing against it would only produce the confusing
+            // 404 this message exists to replace.
+            ShowResult(resultTextBlock, $"❌ {NINA.Plugin.AIAssistant.AI.GitHubModelsProvider.RetirementMessage}", Colors.Salmon);
         }
 
         #endregion
@@ -507,8 +474,12 @@ namespace NINA.Plugin.AIAssistant
                 var json = JsonConvert.SerializeObject(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                // Use gemini-2.0-flash-001 for testing (stable model)
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key={plugin.GoogleApiKey}";
+                // Test with the model the user actually selected — a hardcoded test model
+                // ages out from under us (gemini-2.0-flash-001 was retired and the Test
+                // button failed while the selected model worked fine). The alias fallback
+                // tracks Google's latest stable Flash release, so it cannot expire.
+                var testModel = plugin.GoogleModelId ?? "gemini-flash-latest";
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{testModel}:generateContent?key={plugin.GoogleApiKey}";
                 var response = await client.PostAsync(url, content);
 
                 if (response.IsSuccessStatusCode)

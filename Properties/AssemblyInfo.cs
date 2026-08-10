@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.0.3")]
-[assembly: AssemblyFileVersion("2.5.0.3")]
+[assembly: AssemblyVersion("2.5.1.0")]
+[assembly: AssemblyFileVersion("2.5.1.0")]
 
 // Plugin metadata - aligned with NINA manifest standards
 [assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
@@ -48,14 +48,14 @@ using System.Runtime.InteropServices;
 • Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging
 • Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
 
-🤖 6 AI PROVIDERS (Free to Advanced):
-• GitHub Models (FREE) - No credit card, great for learning
-• OpenAI GPT-4o/o1 - Most capable reasoning for complex planning
-• Anthropic Claude Sonnet 4.5 - Best for equipment control via MCP
-• Google Gemini 2.0 - Fast responses, MCP equipment control support
-• Ollama (Local) - Privacy-focused, works offline, no API costs
-• Mistral AI - European-hosted models for chat, reasoning and coding
+🤖 5 AI PROVIDERS (Free to Advanced):
+• Ollama (Local) - Privacy-focused, works offline, no API costs, no key
+• Google Gemini - Free API tier, fast responses, MCP equipment control support
+• Mistral AI - Free API tier, European-hosted models for chat, reasoning and coding
+• OpenAI GPT - Most capable reasoning for complex planning
+• Anthropic Claude - Best for equipment control via MCP
 Dynamic model discovery ensures you always have latest AI capabilities.
+(GitHub Models was retired by GitHub on July 30, 2026 and no longer works.)
 
 🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):
 Control your entire observatory through conversation:

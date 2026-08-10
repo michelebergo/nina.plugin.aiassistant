@@ -1,192 +1,58 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure;
-using Azure.AI.Inference;
 using NINA.Core.Utility;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace NINA.Plugin.AIAssistant.AI
 {
     /// <summary>
-    /// Provider for GitHub Models (free tier available)
-    /// Uses the Azure AI Inference SDK with GitHub endpoint
+    /// Provider for GitHub Models — RETIRED.
+    /// GitHub shut the whole service down for every customer on July 30, 2026
+    /// (playground, model catalog, inference API and BYOK). The endpoint this
+    /// provider called returns 404 for everyone, so instead of surfacing a raw
+    /// HTTP error every request now explains what happened and where to go.
+    /// The type is kept so existing configurations still load and get the
+    /// explanation rather than a crash.
     /// </summary>
     public class GitHubModelsProvider : IAIProvider
     {
-        private ChatCompletionsClient? _client;
+        internal const string RetirementMessage =
+            "GitHub retired the GitHub Models service on July 30, 2026 — the free API this provider used " +
+            "no longer exists for anyone. Please switch provider in Options → AI Assistant: " +
+            "Ollama (runs locally, free, no key), Google Gemini or Mistral (free API tiers).";
+
         private AIProviderConfig? _config;
-        private HttpClient? _httpClient;
 
         public AIProviderType ProviderType => AIProviderType.GitHub;
-        public string DisplayName => "GitHub Models (Free)";
-        public bool IsConfigured => _client != null && _config != null;
+        public string DisplayName => "GitHub Models (Retired)";
+        public bool IsConfigured => _config != null;
         public bool IsMCPEnabled => false;
 
-        public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
+        public Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                _config = config;
-                _httpClient = new HttpClient();
-                _httpClient.Timeout = TimeSpan.FromMinutes(5);
-
-                // GitHub Models endpoint
-                var endpoint = new Uri("https://models.inference.ai.azure.com");
-                
-                // GitHub PAT or API key
-                var credential = new AzureKeyCredential(config.ApiKey ?? throw new ArgumentException("API key is required"));
-
-                _client = new ChatCompletionsClient(endpoint, credential);
-
-                Logger.Info("GitHub Models provider initialized successfully");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Failed to initialize GitHub Models provider: {ex.Message}");
-                return false;
-            }
+            // Initialization still "succeeds" so a stored GitHub configuration keeps
+            // loading and every actual use surfaces the retirement explanation.
+            _config = config;
+            Logger.Warning("GitHub Models provider selected, but the service was retired by GitHub on 2026-07-30");
+            return Task.FromResult(true);
         }
 
-        public async Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default)
+        public Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default)
         {
-            if (_client == null || _config == null)
-            {
-                return new AIResponse { Success = false, Error = "Provider not initialized" };
-            }
-
-            try
-            {
-                var systemPrompt = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
-
-                var chatOptions = new ChatCompletionsOptions
-                {
-                    // GitHub Models doesn't support temperature parameter - uses default (1.0)
-                    // Temperature is removed to avoid "unsupported_parameter" errors
-                    Model = _config.ModelId ?? "gpt-4o"
-                };
-                chatOptions.Messages.Add(new ChatRequestSystemMessage(systemPrompt));
-                if (request.History != null)
-                {
-                    foreach (var turn in request.History)
-                    {
-                        if (turn.Role == "assistant")
-                            chatOptions.Messages.Add(new ChatRequestAssistantMessage(turn.Content));
-                        else
-                            chatOptions.Messages.Add(new ChatRequestUserMessage(turn.Content));
-                    }
-                }
-                chatOptions.Messages.Add(new ChatRequestUserMessage(request.Prompt));
-                // GitHub Models uses max_completion_tokens instead of max_tokens
-                chatOptions.AdditionalProperties["max_completion_tokens"] = BinaryData.FromObjectAsJson(request.MaxTokens);
-
-                var response = await _client.CompleteAsync(chatOptions, cancellationToken);
-                var result = response.Value;
-                var firstChoice = result.Content;
-
-                return new AIResponse
-                {
-                    Success = true,
-                    Content = firstChoice,
-                    ModelUsed = result.Model ?? _config.ModelId,
-                    TokensUsed = result.Usage.TotalTokens,
-                    Metadata = new System.Collections.Generic.Dictionary<string, object>
-                    {
-                        ["provider"] = "GitHub",
-                        ["input_tokens"] = result.Usage.PromptTokens,
-                        ["output_tokens"] = result.Usage.CompletionTokens
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"GitHub Models request failed: {ex.Message}");
-                return new AIResponse
-                {
-                    Success = false,
-                    Error = ex.Message
-                };
-            }
+            // No point reaching for the network: the service is gone. Explaining beats a 404.
+            Logger.Warning("GitHub Models request refused: the service was retired by GitHub on 2026-07-30");
+            return Task.FromResult(new AIResponse { Success = false, Error = RetirementMessage });
         }
 
-        public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
+        public Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var testRequest = new AIRequest
-                {
-                    Prompt = "Hello, confirm you're working.",
-                    MaxTokens = 10
-                };
-
-                var response = await SendRequestAsync(testRequest, cancellationToken);
-                return response.Success;
-            }
-            catch
-            {
-                return false;
-            }
+            return Task.FromResult(false);
         }
 
-        public async Task<string[]> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
+        public Task<string[]> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // GitHub Models API endpoint for model listing
-                if (_httpClient == null || _config == null)
-                    return GetDefaultModels();
-
-                var request = new HttpRequestMessage(HttpMethod.Get, "https://models.inference.ai.azure.com/models");
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.ApiKey);
-                request.Headers.Add("Accept", "application/json");
-
-                var response = await _httpClient.SendAsync(request, cancellationToken);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.Warning($"GitHub Models API returned {response.StatusCode}, using default list");
-                    return GetDefaultModels();
-                }
-
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                var jsonResponse = JObject.Parse(responseContent);
-                var models = jsonResponse["data"]?.ToObject<List<JObject>>();
-
-                if (models == null || models.Count == 0)
-                    return GetDefaultModels();
-
-                // Filter to chat-capable models only (exclude embeddings, image, audio, etc.)
-                var excludePatterns = new[] { "embed", "whisper", "dall-e", "tts", "jais",
-                                              "cohere-command-r", "ai21" };
-                
-                var modelIds = models
-                    .Select(m => m["id"]?.ToString())
-                    .Where(id => !string.IsNullOrEmpty(id) &&
-                                !excludePatterns.Any(p => id!.Contains(p, StringComparison.OrdinalIgnoreCase)))
-                    .OrderBy(id => id)
-                    .ToArray();
-
-                Logger.Info($"GitHub Models: Found {modelIds.Length} models via API");
-                return modelIds.Length > 0 ? modelIds : GetDefaultModels();
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Failed to fetch GitHub models: {ex.Message}, using default list");
-                return GetDefaultModels();
-            }
-        }
-
-        private string[] GetDefaultModels()
-        {
-            // GitHub Models available as of January 2026 (fallback)
-            return new[]
+            // Kept only so a stored model selection still renders in the options UI.
+            return Task.FromResult(new[]
             {
                 "gpt-4o",
                 "gpt-4o-mini",
@@ -200,7 +66,7 @@ namespace NINA.Plugin.AIAssistant.AI
                 "claude-sonnet-4-5",
                 "llama-3.3-70b-instruct",
                 "phi-4"
-            };
+            });
         }
     }
 }

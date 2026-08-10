@@ -161,7 +161,7 @@ namespace NINA.Plugin.AIAssistant
                 {
                     Provider = AIProviderType.Google,
                     ApiKey = GoogleApiKey,
-                    ModelId = GoogleModelId ?? "gemini-2.0-flash-001"
+                    ModelId = GoogleModelId ?? "gemini-flash-latest"
                 },
                 AIProviderType.Ollama => new AIProviderConfig
                 {
@@ -348,7 +348,7 @@ namespace NINA.Plugin.AIAssistant
 
         public string? GoogleModelId
         {
-            get => SanitizeModelId(Settings.Default.GoogleModelId ?? "gemini-2.0-flash-001");
+            get => SanitizeModelId(Settings.Default.GoogleModelId ?? "gemini-flash-latest");
             set
             {
                 Settings.Default.GoogleModelId = SanitizeModelId(value);
