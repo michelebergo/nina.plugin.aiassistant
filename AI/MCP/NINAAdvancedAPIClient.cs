@@ -67,6 +67,53 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
         {
             return new List<MCPTool>
             {
+                // Knowledge wiki (local markdown knowledge base, works without the NINA API)
+                new MCPTool
+                {
+                    Name = "wiki_index",
+                    Description = "List all pages of the local knowledge wiki (the user's equipment quirks, solved problems, site notes). Use it to discover what user-specific knowledge exists.",
+                    InputSchema = new MCPToolInputSchema()
+                },
+                new MCPTool
+                {
+                    Name = "wiki_search",
+                    Description = "Full-text search of the local knowledge wiki. ALWAYS use this before answering questions about the user's specific equipment, observing site, or a problem they may have hit before. Wiki facts take precedence over general knowledge.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["query"] = new MCPToolParameter { Type = "string", Description = "Search terms, e.g. 'autofocus HFR' or the component name" }
+                        },
+                        Required = new List<string> { "query" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "wiki_read",
+                    Description = "Read one full page of the local knowledge wiki by its path (as returned by wiki_index or wiki_search), e.g. 'wiki/concepts/guiding-issues.md'.",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["page"] = new MCPToolParameter { Type = "string", Description = "Page path relative to the wiki root" }
+                        },
+                        Required = new List<string> { "page" }
+                    }
+                },
+                new MCPTool
+                {
+                    Name = "wiki_append",
+                    Description = "Record one fact into the knowledge wiki's append-only raw notes. A confirmation dialog is always shown to the user before anything is written. Write one concise, self-contained fact per call, containing ONLY what the user actually stated - never add details they did not say (no invented dates, numbers or conditions).",
+                    InputSchema = new MCPToolInputSchema
+                    {
+                        Properties = new Dictionary<string, MCPToolParameter>
+                        {
+                            ["note"] = new MCPToolParameter { Type = "string", Description = "The fact to record, one line, with enough context to stand alone" }
+                        },
+                        Required = new List<string> { "note" }
+                    }
+                },
+
                 // Equipment Status & Connection
                 new MCPTool
                 {
@@ -1600,11 +1647,79 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
             };
         }
 
+        private static MCPToolResult InvokeWikiTool(string toolName, Dictionary<string, object>? arguments)
+        {
+            string? Arg(string name) =>
+                arguments != null && arguments.TryGetValue(name, out var v) ? v?.ToString() : null;
+
+            if (toolName == "wiki_append" && !ConfirmWikiAppend(Arg("note")))
+            {
+                return new MCPToolResult
+                {
+                    Success = false,
+                    Error = "The user declined saving this note to the wiki. Do not retry unless they ask again."
+                };
+            }
+
+            var content = toolName switch
+            {
+                "wiki_index" => NINA.Plugin.AIAssistant.Wiki.LlmWikiStore.GetIndex(),
+                "wiki_search" => NINA.Plugin.AIAssistant.Wiki.LlmWikiStore.Search(Arg("query")),
+                "wiki_read" => NINA.Plugin.AIAssistant.Wiki.LlmWikiStore.Read(Arg("page")),
+                "wiki_append" => NINA.Plugin.AIAssistant.Wiki.LlmWikiStore.AppendRawNote("assistant", Arg("note")),
+                _ => null
+            };
+
+            return content == null
+                ? new MCPToolResult { Success = false, Error = $"Unknown tool: {toolName}" }
+                : new MCPToolResult { Success = true, Content = content };
+        }
+
+        /// <summary>
+        /// Hard consent gate for wiki writes: models are instructed to ask in chat
+        /// first, but small local models routinely skip that, so the write is also
+        /// gated by an explicit user dialog showing the exact text to be saved.
+        /// </summary>
+        private static bool ConfirmWikiAppend(string? note)
+        {
+            if (string.IsNullOrWhiteSpace(note))
+            {
+                return false;
+            }
+
+            try
+            {
+                var app = System.Windows.Application.Current;
+                if (app?.Dispatcher == null)
+                {
+                    return true; // headless (tests) - no UI to ask
+                }
+
+                return app.Dispatcher.Invoke(() =>
+                    System.Windows.MessageBox.Show(
+                        $"The AI assistant wants to save this note to your knowledge wiki:\n\n\"{note}\"\n\nSave it?",
+                        "AI Assistant - save to wiki",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Wiki append confirmation failed, denying write: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>
         /// Invoke a NINA Advanced API tool
         /// </summary>
         public async Task<MCPToolResult> InvokeToolAsync(string toolName, Dictionary<string, object>? arguments, CancellationToken cancellationToken = default)
         {
+            // Knowledge wiki tools are local file operations and work without the NINA API.
+            if (toolName.StartsWith("wiki_", StringComparison.Ordinal))
+            {
+                return InvokeWikiTool(toolName, arguments);
+            }
+
             if (_config == null)
             {
                 return new MCPToolResult { Success = false, Error = "NINA Advanced API not configured" };
