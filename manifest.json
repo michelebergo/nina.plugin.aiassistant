@@ -31,6 +31,13 @@
   "ChangeLog": [
     {
       "Version": "2.5.2.0",
+      "Date": "2026-08-15",
+      "Changes": [
+        "Ollama: thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) were slow or returned empty replies (fixes #8) - Ollama enables a thinking phase by default, and on some runs the actual answer lands in a separate thinking field while content comes back empty. Requests now send think:false by default, and the parser recovers answers from the thinking field and strips inline think blocks"
+      ]
+    },
+    {
+      "Version": "2.5.1.0",
       "Date": "2026-08-10",
       "Changes": [
         "Google Gemini Test button now tests the model you selected instead of a hardcoded retired one (gemini-2.0-flash-001); all Gemini defaults use the gemini-flash-latest alias so they cannot expire again",
