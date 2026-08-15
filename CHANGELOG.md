@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3.0] - 2026-08-15
+
+### Added
+- **Knowledge Wiki (second brain)** - a local markdown knowledge base at `%LOCALAPPDATA%\NINA\llmwiki`, seeded on first use with troubleshooting checklists and page templates. With MCP enabled the assistant searches it before answering (`wiki_index`/`wiki_search`/`wiki_read`): facts about YOUR equipment, site and solved problems take precedence over the model's general knowledge, and the page used is cited.
+- **"Remember this" with a real consent gate** (`wiki_append`) - when the chat surfaces a durable fact, the assistant can save it to the wiki's append-only `raw/` notes; a confirmation dialog always shows the exact text before anything touches disk (small local models proved they skip prompt-level consent). Consolidation into proper pages is done by the separate [nina.autopilot](https://github.com/michelebergo/nina.autopilot) ingest agent, which also processes the AI Weather daily digests written to the same shared wiki.
+- **"Disable model thinking" toggle in the Ollama options** (on by default) - the 2.5.2.0 behavior is now user-controllable for those who want thinking on fast hardware.
+
+### Changed
+- Options panel: checkboxes and button rows are now consistently left-aligned.
+
 ## [2.5.2.0] - 2026-08-15
 
 ### Fixed

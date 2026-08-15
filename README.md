@@ -14,6 +14,7 @@
 - **Dynamic Model Discovery**: Automatic detection of latest AI models from each provider
 - **Image Analysis**: FITS header reading, HFR/FWHM monitoring, star detection, quality assessment
 - **Dockable Chat Panel**: Integrated AI chat within NINA's imaging tab
+- **Knowledge Wiki (second brain)**: A local markdown knowledge base the assistant consults before answering — your equipment quirks, solved problems and site notes take precedence over the model's general knowledge
 - **Extensible**: Connect external MCP servers for astronomy calculations, weather, catalogs
 
 ## Installation
@@ -33,8 +34,28 @@
 
 1. Go to **Options → Plugins → AI Assistant**
 2. Select your AI provider
-3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers). For Ollama, the model's "thinking" phase is disabled by default so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
+3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers). For Ollama, the model's "thinking" phase is disabled by default ("Disable model thinking" toggle in the Ollama section) so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
 4. Start chatting in the dockable AI panel
+
+## Knowledge Wiki
+
+With MCP enabled, the assistant has a personal knowledge wiki at
+`%LOCALAPPDATA%\NINA\llmwiki` — plain markdown pages you can read and edit with
+any editor. On first use it is seeded with a starter pack (troubleshooting
+checklists, page templates and a schema).
+
+- **The assistant reads it first**: questions about your specific equipment,
+  site, or a problem you hit before are answered from the wiki (`wiki_search` /
+  `wiki_read` tools), citing the page used.
+- **It can remember things**: when the conversation surfaces a durable fact
+  ("my camera shows amp glow above gain 350"), the assistant offers to save it.
+  A confirmation dialog always shows the exact text before anything is written;
+  notes land append-only in `raw/`, never in consolidated pages.
+- **Shared second brain**: the AI Weather plugin appends daily sky digests to
+  the same wiki, and the [nina.autopilot](https://github.com/michelebergo/nina.autopilot)
+  agent (`--wiki-ingest`) consolidates all raw notes into proper wiki pages.
+- Add your own pages any time: copy the templates in `wiki/entities/` and the
+  assistant will find them.
 
 ## Building from Source
 
