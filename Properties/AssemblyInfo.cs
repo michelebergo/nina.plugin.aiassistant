@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 // General Information
@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Michele Bergo")]
 [assembly: AssemblyProduct("NINA.Plugins")]
-[assembly: AssemblyCopyright("Copyright Â© 2026 Michele Bergo")]
+[assembly: AssemblyCopyright("Copyright © 2026 Michele Bergo")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -41,42 +41,41 @@ using System.Runtime.InteropServices;
 // Long description
 [assembly: AssemblyMetadata("LongDescription", @"Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.
 
-ðŸ”­ FOR ASTROPHOTOGRAPHERS:
-â€¢ Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings
-â€¢ Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions
-â€¢ Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections
-â€¢ Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging
-â€¢ Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
+🔭 FOR ASTROPHOTOGRAPHERS:
+• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings
+• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions
+• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections
+• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging
+• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
 
-ðŸ¤– 5 AI PROVIDERS (Free to Advanced):
-â€¢ Ollama (Local) - Privacy-focused, works offline, no API costs, no key
-â€¢ Google Gemini - Free API tier, fast responses, MCP equipment control support
-â€¢ Mistral AI - Free API tier, European-hosted models for chat, reasoning and coding
-â€¢ OpenAI GPT - Most capable reasoning for complex planning
-â€¢ Anthropic Claude - Best for equipment control via MCP
+🤖 5 AI PROVIDERS (Free to Advanced):
+• Ollama (Local) - Privacy-focused, works offline, no API costs, no key
+• Google Gemini - Free API tier, fast responses, MCP equipment control support
+• Mistral AI - Free API tier, European-hosted models for chat, reasoning and coding
+• OpenAI GPT - Most capable reasoning for complex planning
+• Anthropic Claude - Best for equipment control via MCP
 Dynamic model discovery ensures you always have latest AI capabilities.
 (GitHub Models was retired by GitHub on July 30, 2026 and no longer works.)
 
-ðŸŽ›ï¸ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):
+🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):
 Control your entire observatory through conversation:
-â€¢ Camera: Take exposures, adjust cooling, bin settings, gain control
-â€¢ Mount: GOTO coordinates, slew, park/unpark, tracking control
-â€¢ Focuser: Move absolute/relative, run autofocus, temperature compensation
-â€¢ Filter Wheel: Change filters, get positions, optimize filter rotation
-â€¢ Guiding: Start/stop PHD2, dither, analyze drift
-â€¢ Platesolving: Solve images, sync mount, analyze pointing accuracy
+• Camera: Take exposures, adjust cooling, bin settings, gain control
+• Mount: GOTO coordinates, slew, park/unpark, tracking control
+• Focuser: Move absolute/relative, run autofocus, temperature compensation
+• Filter Wheel: Change filters, get positions, optimize filter rotation
+• Guiding: Start/stop PHD2, dither, analyze drift
+• Platesolving: Solve images, sync mount, analyze pointing accuracy
 100+ built-in MCP tools for complete observatory control.
 
-ðŸ“Š IMAGE ANALYSIS:
-â€¢ FITS Header Reading, Star Detection, HFR/FWHM monitoring
-â€¢ Statistics Analysis, Quality Assessment with actionable recommendations
-â€¢ Vision API Integration for advanced image understanding
+📊 IMAGE ANALYSIS:
+• FITS Header Reading, Star Detection, HFR/FWHM monitoring
+• Statistics Analysis, Quality Assessment with actionable recommendations
+• Vision API Integration for advanced image understanding
 
-ðŸ”Œ EXTENSIBLE ARCHITECTURE:
-â€¢ Built-in MCP Server via NINA Advanced API plugin
-â€¢ External MCP Servers for community tools
-â€¢ Dynamic model discovery and custom model IDs
-â€¢ Optional nina.autopilot Orchestrator dashboard integration
+🔌 EXTENSIBLE ARCHITECTURE:
+• Built-in MCP Server via NINA Advanced API plugin
+• External MCP Servers for community tools
+• Dynamic model discovery and custom model IDs
+• Optional nina.autopilot Orchestrator dashboard integration
 
 Transform complex equipment control and imaging workflows into simple conversations.")]
-
