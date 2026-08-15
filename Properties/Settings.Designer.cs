@@ -163,6 +163,18 @@ namespace NINA.Plugin.AIAssistant.Properties {
             }
         }
 
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool OllamaDisableThinking {
+            get {
+                return ((bool)(this["OllamaDisableThinking"]));
+            }
+            set {
+                this["OllamaDisableThinking"] = value;
+            }
+        }
+
         // MCP (Model Context Protocol) Settings for NINA Advanced API
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

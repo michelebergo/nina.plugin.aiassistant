@@ -167,7 +167,8 @@ namespace NINA.Plugin.AIAssistant
                 {
                     Provider = AIProviderType.Ollama,
                     Endpoint = OllamaEndpoint ?? "http://localhost:11434",
-                    ModelId = OllamaModelId ?? "llama3.2"
+                    ModelId = OllamaModelId ?? "llama3.2",
+                    DisableThinking = OllamaDisableThinking
                 },
                 AIProviderType.Mistral => new AIProviderConfig
                 {
@@ -382,6 +383,24 @@ namespace NINA.Plugin.AIAssistant
             set
             {
                 Settings.Default.OllamaModelId = SanitizeModelId(value);
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                if (SelectedProvider == AIProviderType.Ollama)
+                    _ = InitializeAIProviderAsync();
+            }
+        }
+
+        /// <summary>
+        /// When true (default), Ollama requests skip the model's "thinking" phase.
+        /// Thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) reason at length
+        /// before answering by default, multiplying response times.
+        /// </summary>
+        public bool OllamaDisableThinking
+        {
+            get => Settings.Default.OllamaDisableThinking;
+            set
+            {
+                Settings.Default.OllamaDisableThinking = value;
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Ollama)

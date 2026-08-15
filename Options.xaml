@@ -149,9 +149,11 @@
                         <TextBlock Text="Model (auto-detected from the server):" Margin="0,10,0,5"/>
                         <StackPanel Orientation="Horizontal">
                             <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded" DropDownOpened="OllamaModelCombo_DropDownOpened"/>
-                            <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="6,0,0,0" MinWidth="70"/>
+                            <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="6,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <TextBlock Text="Tip: Run 'ollama pull modelname' to download models. The list auto-detects installed models from the server (open the dropdown or click Refresh to update)." FontSize="10" Opacity="0.5" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                        <CheckBox Content="Disable model thinking (recommended)" IsChecked="{Binding OllamaDisableThinking, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                        <TextBlock Text="Thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) reason at length before answering, which can multiply response times. Turn off only on fast hardware." FontSize="10" Opacity="0.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
                             <Run Text="Remote model on your LAN: set the Server URL above to http://&lt;other-pc-ip&gt;:11434 (e.g. http://192.168.1.50:11434)."/><LineBreak/>
                             <Run Text="On that machine, start Ollama with OLLAMA_HOST=0.0.0.0 so it accepts network connections, and allow port 11434 through its firewall."/><LineBreak/>
@@ -188,7 +190,7 @@
                     <StackPanel Margin="5">
                         <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">When using Anthropic Claude, Google Gemini, or Ollama (with tool-capable models), enable MCP (Model Context Protocol) to give AI direct control over your NINA equipment via the Advanced API plugin.</TextBlock>
                         
-                        <CheckBox Content="Enable MCP for Equipment Control" IsChecked="{Binding MCPEnabled, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                        <CheckBox Content="Enable MCP for Equipment Control" IsChecked="{Binding MCPEnabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                         
                         <TextBlock Text="NINA Advanced API Settings:" FontWeight="SemiBold" Margin="0,0,0,5"/>
                         <TextBlock Text="Requires: NINA Advanced API plugin installed and enabled" FontSize="10" Opacity="0.5" Margin="0,0,0,8"/>
@@ -210,14 +212,14 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Port:" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="1" Text="{Binding MCPNinaPort, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" MinWidth="80"/>
-                            <Button Grid.Column="2" Content="Test Connection" Click="TestMCPConnection_Click" Margin="10,0,0,0" MinWidth="100"/>
+                            <Button Grid.Column="2" Content="Test Connection" Click="TestMCPConnection_Click" Margin="10,0,0,0" MinWidth="100" HorizontalAlignment="Left"/>
                         </Grid>
                         
                         <TextBlock x:Name="MCPTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
                         
                         <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,10,0,0">With MCP enabled, you can ask the AI to: "Connect all equipment", "Take a 30s exposure of M31", "Cool camera to -10°C", "Start guiding", and more!</TextBlock>
                         
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
                             <Button Content="Get Advanced API Plugin" Click="GetAdvancedAPIPlugin_Click" MinWidth="140"/>
                             <Button Content="MCP GitHub Repo" Click="GetMCPRepo_Click" Margin="10,0,0,0" MinWidth="120"/>
                         </StackPanel>
@@ -241,11 +243,11 @@
                                  FontFamily="Consolas" MinHeight="140" MinWidth="450" HorizontalAlignment="Left"
                                  ToolTip="Standard mcpServers JSON. Add multiple servers under the mcpServers object."/>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
                             <Button Content="Validate" Click="ValidateExternalMCP_Click" MinWidth="80"/>
                             <Button Content="Reset to NINA Default" Click="ResetExternalMCP_Click" Margin="10,0,0,0" MinWidth="140"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
                             <TextBlock Text="Useful servers:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <ComboBox x:Name="UsefulServersCombo" MinWidth="190" SelectedIndex="0">
                                 <ComboBoxItem Content="Fetch (web pages)" Tag="fetch"/>
@@ -260,7 +262,7 @@
                                 <ComboBoxItem Content="Filesystem (NINA logs)" Tag="filesystem"/>
                                 <ComboBoxItem Content="Everything (test server)" Tag="everything"/>
                             </ComboBox>
-                            <Button Content="Add to Config" Click="AddUsefulServer_Click" Margin="6,0,0,0" MinWidth="100"/>
+                            <Button Content="Add to Config" Click="AddUsefulServer_Click" Margin="6,0,0,0" MinWidth="100" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <TextBlock x:Name="ExternalMCPValidateResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
 
@@ -273,7 +275,7 @@
                             <Run Text="Tool name collisions across servers are auto-prefixed with the server name."/>
                         </TextBlock>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
                             <Button Content="Documentation" Click="GetExternalMCPDocs_Click" MinWidth="120"/>
                             <Button Content="Example Server" Click="GetExternalMCPExample_Click" Margin="10,0,0,0" MinWidth="120"/>
                         </StackPanel>
@@ -289,6 +291,7 @@
                         </TextBlock>
                         <CheckBox Content="Enable orchestrator status panel"
                                   IsChecked="{Binding OrchestratorEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                  HorizontalAlignment="Left"
                                   Margin="0,0,0,8"/>
                         <TextBlock Text="Dashboard URL:" Margin="0,0,0,3"/>
                         <TextBox Text="{Binding OrchestratorUrl, UpdateSourceTrigger=PropertyChanged}"
