@@ -33,7 +33,7 @@
 
 1. Go to **Options → Plugins → AI Assistant**
 2. Select your AI provider
-3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers)
+3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers). For Ollama, the model's "thinking" phase is disabled by default so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
 4. Start chatting in the dockable AI panel
 
 ## Building from Source
