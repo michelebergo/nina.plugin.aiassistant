@@ -139,17 +139,23 @@ namespace NINA.Plugin.AIAssistant.AI
             }
             messages.Add(new { role = "user", content = request.Prompt });
 
-            var requestBody = new
+            var requestBody = new Dictionary<string, object>
             {
-                model = modelId,
-                messages,
-                stream = false,
-                options = new
+                ["model"] = modelId,
+                ["messages"] = messages,
+                ["stream"] = false,
+                ["options"] = new
                 {
                     temperature = request.Temperature,
                     num_predict = request.MaxTokens
                 }
             };
+            if (_config.DisableThinking)
+            {
+                // Thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) reason at length
+                // by default; servers that do not support the parameter ignore it.
+                requestBody["think"] = false;
+            }
 
             var json = JsonConvert.SerializeObject(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -283,18 +289,22 @@ namespace NINA.Plugin.AIAssistant.AI
                 Logger.Info($"OllamaProvider: Tool iteration {iterations}");
                 request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
 
-                var requestBody = new
+                var requestBody = new Dictionary<string, object>
                 {
-                    model = modelId,
-                    messages = messages,
-                    tools = ollamaTools,
-                    stream = false,
-                    options = new
+                    ["model"] = modelId,
+                    ["messages"] = messages,
+                    ["tools"] = ollamaTools,
+                    ["stream"] = false,
+                    ["options"] = new
                     {
                         temperature = request.Temperature,
                         num_predict = request.MaxTokens
                     }
                 };
+                if (_config.DisableThinking)
+                {
+                    requestBody["think"] = false;
+                }
 
                 var json = JsonConvert.SerializeObject(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -421,7 +431,20 @@ namespace NINA.Plugin.AIAssistant.AI
         private AIResponse ParseResponse(string responseContent, string modelId)
         {
             var jsonResponse = JObject.Parse(responseContent);
-            var messageContent = jsonResponse["message"]?["content"]?.ToString();
+            var message = jsonResponse["message"];
+            var messageContent = StripThinkingTags(message?["content"]?.ToString());
+
+            if (string.IsNullOrWhiteSpace(messageContent))
+            {
+                // Thinking-capable models can leave content empty and put the actual
+                // answer in the thinking field instead - recover it from there.
+                var thinking = message?["thinking"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(thinking))
+                {
+                    Logger.Info("Ollama response content was empty; recovered answer from 'thinking' field");
+                    messageContent = thinking;
+                }
+            }
 
             var promptTokens = jsonResponse["prompt_eval_count"]?.Value<int>() ?? 0;
             var evalTokens = jsonResponse["eval_count"]?.Value<int>() ?? 0;
@@ -440,6 +463,23 @@ namespace NINA.Plugin.AIAssistant.AI
                     ["output_tokens"] = evalTokens
                 }
             };
+        }
+
+        /// <summary>
+        /// Some models (e.g. Qwen 3.x) emit their reasoning inline as &lt;think&gt;...&lt;/think&gt;
+        /// blocks inside the content; the answer follows the closing tag.
+        /// </summary>
+        private static string? StripThinkingTags(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            var result = System.Text.RegularExpressions.Regex.Replace(
+                text, "<think>.*?</think>", string.Empty,
+                System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return result.Trim();
         }
 
         private string GetMCPSystemPrompt()

@@ -1,7 +1,7 @@
-{
+﻿{
   "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
   "Name": "AI Assistant",
-  "Version": "2.5.1.0",
+  "Version": "2.5.2.0",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -25,12 +25,12 @@
       "EN": "Intelligent AI assistant that transforms NINA into a conversational imaging system for better astrophotography results"
     },
     "long": {
-      "EN": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\n🔭 FOR ASTROPHOTOGRAPHERS:\n• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\n• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\n• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\n• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\n• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\n🤖 5 AI PROVIDERS (Free to Advanced):\nOllama (local, free), Google Gemini (free tier), Mistral AI (free tier), OpenAI GPT, Anthropic Claude. Dynamic model discovery ensures you always have latest AI capabilities.\n\n🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation: 'Connect camera and mount, cool to -10°C, unpark', 'Slew to Orion Nebula, center it, start guiding', 'Take 5-minute Ha exposure, then switch to OIII'. 100+ built-in MCP tools for cameras, mounts, focusers, filter wheels, rotators, dome control, guiding, platesolving. MCP now supports Anthropic Claude, Google Gemini, AND Ollama (local models).\n\n📊 INTELLIGENT IMAGING ANALYSIS:\nHFR monitoring, star detection, background assessment, exposure evaluation, pattern recognition for tracking issues.\n\n🔧 WORKFLOW AUTOMATION:\nMulti-target planning, adaptive sequences, equipment coordination, error recovery, session management.\n\n🛠️ EXTENSIBILITY:\nConnect external Python MCP servers for astronomy calculations, weather integration, catalog queries, custom automation.\n\nTransform complex equipment control and imaging workflows into simple conversations."
+      "EN": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\nðŸ”­ FOR ASTROPHOTOGRAPHERS:\nâ€¢ Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\nâ€¢ Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\nâ€¢ Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\nâ€¢ Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\nâ€¢ Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\nðŸ¤– 5 AI PROVIDERS (Free to Advanced):\nOllama (local, free), Google Gemini (free tier), Mistral AI (free tier), OpenAI GPT, Anthropic Claude. Dynamic model discovery ensures you always have latest AI capabilities.\n\nðŸŽ›ï¸ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation: 'Connect camera and mount, cool to -10Â°C, unpark', 'Slew to Orion Nebula, center it, start guiding', 'Take 5-minute Ha exposure, then switch to OIII'. 100+ built-in MCP tools for cameras, mounts, focusers, filter wheels, rotators, dome control, guiding, platesolving. MCP now supports Anthropic Claude, Google Gemini, AND Ollama (local models).\n\nðŸ“Š INTELLIGENT IMAGING ANALYSIS:\nHFR monitoring, star detection, background assessment, exposure evaluation, pattern recognition for tracking issues.\n\nðŸ”§ WORKFLOW AUTOMATION:\nMulti-target planning, adaptive sequences, equipment coordination, error recovery, session management.\n\nðŸ› ï¸ EXTENSIBILITY:\nConnect external Python MCP servers for astronomy calculations, weather integration, catalog queries, custom automation.\n\nTransform complex equipment control and imaging workflows into simple conversations."
     }
   },
   "ChangeLog": [
     {
-      "Version": "2.5.1.0",
+      "Version": "2.5.2.0",
       "Date": "2026-08-10",
       "Changes": [
         "Google Gemini Test button now tests the model you selected instead of a hardcoded retired one (gemini-2.0-flash-001); all Gemini defaults use the gemini-flash-latest alias so they cannot expire again",
@@ -182,3 +182,4 @@
     ]
   }
 }
+

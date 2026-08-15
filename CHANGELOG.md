@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2.0] - 2026-08-15
+
+### Fixed
+- **Ollama thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) were slow or returned empty replies** (fixes #8) - Ollama enables a "thinking" phase by default on newer models: the model reasons at length before answering (77.6s vs 14.2s field-measured on the same request), and on some runs the actual answer lands in a separate `thinking` field while `content` comes back empty. Requests now send `think: false` by default, and the response parser recovers answers from the `thinking` field and strips inline `<think>` blocks. Thanks to Alexandre (@Dhraks) for the report and the before/after measurements.
+
 ## [2.5.1.0] - 2026-08-10
 
 ### Fixed

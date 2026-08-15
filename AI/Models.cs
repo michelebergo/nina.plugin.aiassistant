@@ -60,6 +60,14 @@ namespace NINA.Plugin.AIAssistant.AI
         public string? ApiKey { get; set; }
         public string? ModelId { get; set; } = "gpt-4o-mini";
         public string? Endpoint { get; set; } // For Ollama or custom endpoints
+
+        /// <summary>
+        /// When true (default), asks the backend to skip the model's "thinking" phase.
+        /// Newer local models (Gemma 4, Qwen 3.x, DeepSeek) reason at length by default,
+        /// multiplying response times and sometimes leaving the actual answer in a
+        /// separate reasoning field. Currently honored by the Ollama provider.
+        /// </summary>
+        public bool DisableThinking { get; set; } = true;
     }
 
     /// <summary>
