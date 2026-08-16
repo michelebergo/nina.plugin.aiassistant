@@ -35,6 +35,16 @@ namespace NINA.Plugin.AIAssistant.AI
         Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Point an already-initialized provider at a different model, without rebuilding
+        /// anything. The model id travels inside each request payload, so it is request
+        /// data rather than connection state: re-initializing for it would throw away a
+        /// working HTTP client, and any settings change that arrives while a request or a
+        /// model-list fetch is running would race with it. Does nothing when the provider
+        /// has not been initialized yet - that case needs a real initialization.
+        /// </summary>
+        void UpdateModel(string? modelId);
+
+        /// <summary>
         /// Send a request to the AI provider
         /// </summary>
         Task<AIResponse> SendRequestAsync(AIRequest request, CancellationToken cancellationToken = default);

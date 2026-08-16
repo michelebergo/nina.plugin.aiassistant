@@ -26,6 +26,11 @@ namespace NINA.Plugin.AIAssistant.AI
         public bool IsConfigured => _httpClient != null && _config != null;
         public bool IsMCPEnabled => false;
 
+        public void UpdateModel(string? modelId)
+        {
+            if (_config != null) { _config.ModelId = modelId; }
+        }
+
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
             try

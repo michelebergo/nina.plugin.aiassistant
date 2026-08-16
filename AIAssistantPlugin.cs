@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using NINA.Plugin.AIAssistant.AI;
 using NINA.Plugin.AIAssistant.Orchestrator;
@@ -133,6 +134,76 @@ namespace NINA.Plugin.AIAssistant
             }
         }
 
+        /// <summary>
+        /// Editing one field in the options panel writes several settings in a burst - a
+        /// provider change alone touches the provider, its model and the model list - and
+        /// each setter used to launch its own fire-and-forget initialization. Eight of them
+        /// would run concurrently with no ordering guarantee, so the configuration that
+        /// ended up active was the one that happened to finish last, not the one the user
+        /// chose last. The burst is now coalesced into a single initialization, and the
+        /// gate keeps two of them from overlapping.
+        /// </summary>
+        private void ScheduleProviderInitialization()
+        {
+            var cts = new CancellationTokenSource();
+            // Cancel the pending one only after the replacement is in place, and let the
+            // superseded task dispose its own source: cancelling and disposing here could
+            // pull the token out from under a delay that is still registered on it.
+            var previous = Interlocked.Exchange(ref _initializationCts, cts);
+            previous?.Cancel();
+
+            _ = RunScheduledInitializationAsync(cts);
+        }
+
+        private async Task RunScheduledInitializationAsync(CancellationTokenSource cts)
+        {
+            try
+            {
+                var token = cts.Token;
+                await Task.Delay(SettingsBurstWindow, token);
+                await _initializationGate.WaitAsync(token);
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await InitializeAIProviderAsync();
+                }
+                finally
+                {
+                    _initializationGate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by a newer settings change; the newer one will initialize.
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref _initializationCts, null, cts);
+                cts.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A model change does not touch the connection, so it must not rebuild it: the
+        /// model id is read from the configuration when each request is built. Only a
+        /// provider that has not been initialized yet needs the full path.
+        /// </summary>
+        private void ApplyModelSelection(AIProviderType provider, string? modelId)
+        {
+            RaisePropertyChanged(nameof(SelectedModelId));
+
+            if (!aiService.TryUpdateModel(provider, modelId))
+            {
+                ScheduleProviderInitialization();
+            }
+        }
+
+        /// <summary>How long to wait for a burst of settings writes to settle.</summary>
+        private static readonly TimeSpan SettingsBurstWindow = TimeSpan.FromMilliseconds(400);
+
+        private CancellationTokenSource? _initializationCts;
+        private readonly SemaphoreSlim _initializationGate = new SemaphoreSlim(1, 1);
+
         private AIProviderConfig? GetCurrentProviderConfig()
         {
             var provider = SelectedProvider;
@@ -214,7 +285,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 RaisePropertyChanged(nameof(SelectedModelId));
-                _ = InitializeAIProviderAsync();
+                ScheduleProviderInitialization();
             }
         }
 
@@ -248,7 +319,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.GitHub)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -266,7 +337,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.GitHub)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.GitHub, Settings.Default.GitHubModelId);
             }
         }
 
@@ -283,7 +354,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.OpenAI)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -296,7 +367,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.OpenAI)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.OpenAI, Settings.Default.OpenAIModelId);
             }
         }
 
@@ -313,7 +384,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Anthropic)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -326,7 +397,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Anthropic)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.Anthropic, Settings.Default.AnthropicModelId);
             }
         }
 
@@ -343,7 +414,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Google)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -356,7 +427,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Google)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.Google, Settings.Default.GoogleModelId);
             }
         }
 
@@ -373,7 +444,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Ollama)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -386,7 +457,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Ollama)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.Ollama, Settings.Default.OllamaModelId);
             }
         }
 
@@ -404,7 +475,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Ollama)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -421,7 +492,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Mistral)
-                    _ = InitializeAIProviderAsync();
+                    ScheduleProviderInitialization();
             }
         }
 
@@ -434,7 +505,7 @@ namespace NINA.Plugin.AIAssistant
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
                 if (SelectedProvider == AIProviderType.Mistral)
-                    _ = InitializeAIProviderAsync();
+                    ApplyModelSelection(AIProviderType.Mistral, Settings.Default.MistralModelId);
             }
         }
 

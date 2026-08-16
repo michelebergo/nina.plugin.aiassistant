@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4.0] - 2026-08-16
+
+### Added
+- **Activity trace in the chat** - when the assistant uses tools to answer, a single line shows what it is doing right now (`🔧 Calling: nina_slew_to_coordinates (target=M31)`), then settles into a summary (`⚙ 3 tool calls`) that expands into the full sequence. Each call reports its arguments and its outcome, so a tool that failed or returned nothing is no longer indistinguishable from one that worked. Same trace for Claude, Gemini and Ollama; a question answered without tools leaves nothing behind.
+- **Context and cost readout in the header** - a bar showing how full the model's context window is (amber past two thirds, red past ninety percent), the tokens used and how many are left, plus the session totals and an estimated cost. Models whose context window is not known - including local Ollama models, whose window is set by the model file - show the token count without a bar rather than an invented percentage.
+
+### Fixed
+- **Changing the model no longer rebuilds the connection.** Every settings write fired its own fire-and-forget re-initialization, and one edit in the options writes several settings: up to eight of them ran concurrently with no ordering guarantee, so the configuration left active was the one that happened to finish last, not the one chosen last. A model change now updates the model alone - it travels in each request payload, it is not connection state - and everything else is coalesced into a single initialization with a gate that prevents overlap.
+- **The chat panel now shows the model that will actually answer.** The header refreshed only when the *provider* changed, so picking another model of the same provider left the old name on screen - which is what made the change look like it had not been applied.
+- **The "working" indicator no longer covers the conversation.** It shares the chat's row by design, but without a vertical anchor its background stretched over the whole message area: for the length of every request the chat looked empty. It is now a strip anchored at the bottom.
+
 ## [2.5.3.0] - 2026-08-15
 
 ### Added

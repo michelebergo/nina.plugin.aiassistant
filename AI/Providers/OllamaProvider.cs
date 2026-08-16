@@ -32,6 +32,11 @@ namespace NINA.Plugin.AIAssistant.AI
         public bool IsConfigured => _httpClient != null && _config != null;
         public bool IsMCPEnabled => _mcpEnabled && (_mcpClient?.IsConnected == true || _externalMcpClient?.IsConnected == true);
 
+        public void UpdateModel(string? modelId)
+        {
+            if (_config != null) { _config.ModelId = modelId; }
+        }
+
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
             try
@@ -353,7 +358,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     var toolInput = JsonConvert.DeserializeObject<Dictionary<string, object>>(toolArgsJson) ?? new Dictionary<string, object>();
 
                     Logger.Info($"[MCP] Executing tool: {toolName}");
-                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName} (iteration {iterations})");
+                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName}{MCPToolTrace.DescribeArguments(toolInput)}");
                     Logger.Debug($"[MCP] Tool arguments: {toolArgsJson}");
 
                     // Try built-in first, then external
@@ -395,6 +400,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     }
 
                     Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success} ({(isExternal ? "External" : "Built-in")})");
+                    request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
 
                     var resultContent = result.Success
                         ? result.Content ?? "Tool executed successfully"

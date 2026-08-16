@@ -33,6 +33,11 @@ namespace NINA.Plugin.AIAssistant.AI
         public bool IsConfigured => _httpClient != null && _config != null;
         public bool IsMCPEnabled => _mcpEnabled && (_mcpClient?.IsConnected == true || _externalMcpClient?.IsConnected == true);
 
+        public void UpdateModel(string? modelId)
+        {
+            if (_config != null) { _config.ModelId = modelId; }
+        }
+
         public async Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
             try
@@ -372,7 +377,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     var functionArgs = functionCall["args"]?.ToObject<Dictionary<string, object>>();
 
                     Logger.Info($"[MCP] Executing function: {functionName}");
-                    request.ProgressCallback?.Invoke($"🔧 Calling: {functionName} (iteration {iterations})");
+                    request.ProgressCallback?.Invoke($"🔧 Calling: {functionName}{MCPToolTrace.DescribeArguments(functionArgs)}");
                     Logger.Debug($"[MCP] Function arguments: {(functionArgs != null ? JsonConvert.SerializeObject(functionArgs) : "null")}");
                     
                     // Try built-in first, then external
@@ -414,9 +419,10 @@ namespace NINA.Plugin.AIAssistant.AI
                     }
                     
                     Logger.Info($"[MCP] Function {functionName} completed - Success: {result.Success} ({(isExternal ? "External" : "Built-in")})");
-                    
-                    var resultContent = result.Success 
-                        ? result.Content ?? "Function executed successfully" 
+                    request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
+
+                    var resultContent = result.Success
+                        ? result.Content ?? "Function executed successfully"
                         : $"Error: {result.Error}";
                     
                     return new

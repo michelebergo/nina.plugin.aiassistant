@@ -190,20 +190,30 @@ namespace NINA.Plugin.AIAssistant
 
         private void Plugin_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(AIAssistantPlugin.SelectedProvider) || 
+            if (e.PropertyName == nameof(AIAssistantPlugin.SelectedProvider) ||
                 e.PropertyName == nameof(AIAssistantPlugin.MCPEnabled) ||
                 e.PropertyName == "SelectedProviderInternal")
             {
                 Logger.Info($"AIChatVM: Settings changed ({e.PropertyName}), resetting MCP initialization state");
                 _mcpInitialized = false;
-                
+
                 // Update CurrentModel when provider or its model changes
                 CurrentModel = AIAssistantPlugin.Instance?.SelectedModelId ?? "Default Model";
-                
+
                 // Update status message to prompt for re-init matching the new provider
                 if (AIAssistantPlugin.Instance?.MCPEnabled == true) {
                     StatusMessage = "Ready - MCP will re-initialize on next message";
                 }
+            }
+            else if (e.PropertyName == nameof(AIAssistantPlugin.SelectedModelId))
+            {
+                // Picking another model of the same provider changes neither the connection
+                // nor the MCP session, so nothing is torn down here - but the panel has to
+                // show the model that will actually answer the next message. It used to
+                // refresh only on a provider change, which is why choosing a model looked
+                // like it had not been applied.
+                CurrentModel = AIAssistantPlugin.Instance?.SelectedModelId ?? "Default Model";
+                Logger.Info($"AIChatVM: model changed to {CurrentModel}");
             }
         }
         
@@ -266,6 +276,121 @@ namespace NINA.Plugin.AIAssistant
 
         public bool HasQuotaUsage => !string.IsNullOrEmpty(QuotaUsage);
 
+        #region Context and session usage
+
+        // What the last exchange cost, and what the conversation has cost so far. The
+        // per-request figure alone never answered the question that matters during a long
+        // session: how much room is left before the history has to be cut.
+        private long _sessionInputTokens;
+        private long _sessionOutputTokens;
+        private double _sessionCost;
+        private bool _sessionCostKnown;
+
+        private double _contextPercent;
+        /// <summary>How full the model's context window is, 0-100.</summary>
+        public double ContextPercent
+        {
+            get => _contextPercent;
+            private set
+            {
+                if (SetProperty(ref _contextPercent, value))
+                {
+                    OnPropertyChanged(nameof(ContextBrush));
+                }
+            }
+        }
+
+        private string _contextUsage = "";
+        /// <summary>"12.4k / 200k · 6%", or the raw token count when the window is unknown.</summary>
+        public string ContextUsage
+        {
+            get => _contextUsage;
+            private set
+            {
+                if (SetProperty(ref _contextUsage, value))
+                {
+                    OnPropertyChanged(nameof(HasContextUsage));
+                }
+            }
+        }
+
+        public bool HasContextUsage => !string.IsNullOrEmpty(ContextUsage);
+
+        private bool _hasContextWindow;
+        /// <summary>Whether the bar can be drawn - false for models whose window is unknown.</summary>
+        public bool HasContextWindow
+        {
+            get => _hasContextWindow;
+            private set => SetProperty(ref _hasContextWindow, value);
+        }
+
+        private string _sessionUsage = "";
+        /// <summary>Cumulative tokens and estimated cost for this conversation.</summary>
+        public string SessionUsage
+        {
+            get => _sessionUsage;
+            private set
+            {
+                if (SetProperty(ref _sessionUsage, value))
+                {
+                    OnPropertyChanged(nameof(HasSessionUsage));
+                }
+            }
+        }
+
+        public bool HasSessionUsage => !string.IsNullOrEmpty(SessionUsage);
+
+        /// <summary>
+        /// The bar turns amber past two thirds and red past ninety percent: by then the
+        /// oldest turns are about to be dropped, and that is worth noticing before the
+        /// assistant starts forgetting what was agreed earlier in the night.
+        /// </summary>
+        public string ContextBrush =>
+            ContextPercent >= 90 ? "#D9534F" :
+            ContextPercent >= 66 ? "Goldenrod" :
+            "#5CB85C";
+
+        /// <summary>
+        /// Folds one exchange into the readout. The input tokens of a request are the whole
+        /// prompt - system, tools and history included - so they are the size of the
+        /// context at that moment, not just of the question that was typed.
+        /// </summary>
+        private void UpdateUsage(string? modelId, long inputTokens, long outputTokens)
+        {
+            _sessionInputTokens += inputTokens;
+            _sessionOutputTokens += outputTokens;
+
+            var window = ModelLimits.ContextWindowFor(modelId);
+            HasContextWindow = window.HasValue && inputTokens > 0;
+
+            if (window.HasValue && window.Value > 0)
+            {
+                ContextPercent = Math.Min(100.0, inputTokens * 100.0 / window.Value);
+                var remaining = Math.Max(0, window.Value - inputTokens);
+                // The bar carries the percentage, so the text carries the absolute numbers:
+                // how much of the window is in use, and how much room is left before the
+                // conversation has to be trimmed.
+                ContextUsage = $"{ModelLimits.FormatTokens(inputTokens)} / {ModelLimits.FormatTokens(window.Value)} · {ModelLimits.FormatTokens(remaining)} left";
+            }
+            else
+            {
+                ContextPercent = 0;
+                ContextUsage = inputTokens > 0 ? $"{ModelLimits.FormatTokens(inputTokens)} context" : "";
+            }
+
+            var cost = ModelLimits.EstimateCost(modelId, inputTokens, outputTokens);
+            if (cost.HasValue)
+            {
+                _sessionCost += cost.Value;
+                _sessionCostKnown = true;
+            }
+
+            var totals = $"session ↑{ModelLimits.FormatTokens(_sessionInputTokens)} ↓{ModelLimits.FormatTokens(_sessionOutputTokens)}";
+            SessionUsage = _sessionCostKnown ? $"{totals} · ~${_sessionCost:0.000}" : totals;
+        }
+
+        #endregion
+
         private bool _isMcpSupportedModel = false;
         public bool IsMcpSupportedModel
         {
@@ -283,6 +408,45 @@ namespace NINA.Plugin.AIAssistant
         private bool _mcpInitialized = false;
         private ExternalMCPManager? _externalMcpManager;
         private CancellationTokenSource? _responseCancellationTokenSource;
+
+        /// <summary>
+        /// Ends a trace: it is dropped when no tool ran (the assistant simply answered, and
+        /// an empty "worked on it" entry is noise), otherwise collapsed to a headline that
+        /// says how much work the answer took.
+        /// </summary>
+        private void CollapseActivity(ChatMessage activity, bool shown)
+        {
+            if (!shown)
+            {
+                return;
+            }
+
+            if (activity.ToolCallCount == 0)
+            {
+                Messages.Remove(activity);
+                return;
+            }
+
+            var tools = activity.ToolCallCount == 1 ? "1 tool call" : $"{activity.ToolCallCount} tool calls";
+            activity.Summary = $"⚙ {tools}";
+        }
+
+        /// <summary>
+        /// Progress arrives from the provider's worker thread, while the trace lines land
+        /// in a bound collection, so every update is marshalled to the UI thread.
+        /// </summary>
+        private static void RunOnUIThread(Action action)
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null || dispatcher.CheckAccess())
+            {
+                action();
+            }
+            else
+            {
+                dispatcher.BeginInvoke(action);
+            }
+        }
 
         private async Task InitializeMCPIfNeeded()
         {
@@ -524,6 +688,23 @@ namespace NINA.Plugin.AIAssistant
             var cancellationToken = _responseCancellationTokenSource.Token;
 
             AIResponse? response = null;
+
+            // The trace of what the assistant does to answer. Declared out here so the
+            // finally can close it however the request ends. It only joins the conversation
+            // once there is something to show, so a plain question leaves no trace behind.
+            var activity = new ChatMessage
+            {
+                Role = "activity",
+                Timestamp = DateTime.Now,
+                // Collapsed from the start: while the request runs the headline shows the
+                // step in progress and stays one line tall. A trace that expanded as it
+                // grew pushed the conversation off the screen on any answer that used
+                // several tools - the work was on show, the discussion was not.
+                IsExpanded = false,
+                Summary = "Working..."
+            };
+            var activityShown = false;
+
             try
             {
                 // Initialize MCP if needed (for Anthropic with MCP enabled)
@@ -582,7 +763,24 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                     MaxTokens = 1024,
                     Temperature = 0.7,
                     History = history,
-                    ProgressCallback = (msg) => StatusMessage = msg
+                    ProgressCallback = (msg) =>
+                    {
+                        StatusMessage = msg;
+                        RunOnUIThread(() =>
+                        {
+                            if (!activityShown)
+                            {
+                                activityShown = true;
+                                Messages.Add(activity);
+                            }
+                            if (msg.Contains("Calling")) { activity.ToolCallCount++; }
+
+                            // The headline is the step happening now; the full sequence
+                            // accumulates behind it for whoever wants to open it afterwards.
+                            activity.Summary = ChatMessage.AsHeadline(msg);
+                            activity.AppendActivity(msg);
+                        });
+                    }
                 };
 
                 try
@@ -595,6 +793,11 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                     Logger.Error($"AI Service direct failure: {ex.Message}");
                     throw; // Re-throw to be handled by the main catch block
                 }
+
+                // The work is finished: the trace collapses to its headline so the answer
+                // stays the thing you read, with the detail one click away when a tool did
+                // something surprising.
+                RunOnUIThread(() => CollapseActivity(activity, activityShown));
 
                 if (response == null || !response.Success)
                 {
@@ -610,10 +813,19 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                     var inTok = response.Metadata["input_tokens"];
                     var outTok = response.Metadata["output_tokens"];
                     TokenUsage = $"{inTok} in | {outTok} out ({response.TokensUsed ?? 0} total)";
+
+                    UpdateUsage(response.ModelUsed ?? CurrentModel,
+                                Convert.ToInt64(inTok ?? 0),
+                                Convert.ToInt64(outTok ?? 0));
                 }
                 else
                 {
                     TokenUsage = response.TokensUsed.HasValue ? $"{response.TokensUsed} tokens" : "Tokens: N/A";
+
+                    // Providers that report only a total still contribute to the session
+                    // count; without a split, the context figure stays unknown rather than
+                    // being invented from half the data.
+                    UpdateUsage(response.ModelUsed ?? CurrentModel, 0, response.TokensUsed ?? 0);
                 }
                 
                 IsMcpSupportedModel = isMCPProvider;
@@ -709,6 +921,16 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
             finally
             {
                 IsProcessing = false;
+
+                // A trace whose headline is still a live step means the request ended badly.
+                // It keeps its one line and says so; the detail is a click away, like any
+                // other trace, rather than unfolding over the conversation.
+                if (activityShown && !activity.Summary.StartsWith("⚙"))
+                {
+                    activity.Summary = activity.ToolCallCount > 0
+                        ? $"⚙ {activity.ToolCallCount} tool call(s) — interrupted"
+                        : "⚙ interrupted";
+                }
             }
         }
 
@@ -733,7 +955,7 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
         public void Dispose() { }
     }
 
-    public class ChatMessage : ObservableObject
+    public partial class ChatMessage : ObservableObject
     {
         private string _role = string.Empty;
         public string Role
@@ -769,6 +991,50 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
         }
 
         public bool IsUser => Role == "user";
-        public bool IsAssistant => Role == "assistant";
+        public bool IsAssistant => Role == "assistant" && !IsActivity;
+
+        /// <summary>
+        /// An activity entry: what the assistant did to answer, rather than the answer.
+        /// It is a chat entry and not a status line because the work is part of the
+        /// conversation - which tools ran, on what, and whether they succeeded - and a
+        /// status line that overwrites itself keeps none of it.
+        /// </summary>
+        public bool IsActivity => Role == "activity";
+
+        private bool _isExpanded;
+        /// <summary>Expanded while the request runs, collapsed to the summary afterwards.</summary>
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => SetProperty(ref _isExpanded, value);
+        }
+
+        private string _summary = string.Empty;
+        /// <summary>The one-line headline shown when the trace is collapsed.</summary>
+        public string Summary
+        {
+            get => _summary;
+            set => SetProperty(ref _summary, value);
+        }
+
+        /// <summary>How many tool calls this trace recorded, for the summary line.</summary>
+        public int ToolCallCount { get; set; }
+
+        /// <summary>Appends one live line to the trace.</summary>
+        public void AppendActivity(string line)
+        {
+            Content = string.IsNullOrEmpty(Content) ? line : Content + "\n" + line;
+        }
+
+        /// <summary>
+        /// One progress event rendered as a single-line headline. Long tool arguments are
+        /// cut here rather than at the source, because the full text is still worth having
+        /// in the expanded trace.
+        /// </summary>
+        public static string AsHeadline(string message)
+        {
+            var single = (message ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+            return single.Length <= 64 ? single : single.Substring(0, 64) + "...";
+        }
     }
 }

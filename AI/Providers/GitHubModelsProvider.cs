@@ -28,6 +28,11 @@ namespace NINA.Plugin.AIAssistant.AI
         public bool IsConfigured => _config != null;
         public bool IsMCPEnabled => false;
 
+        public void UpdateModel(string? modelId)
+        {
+            if (_config != null) { _config.ModelId = modelId; }
+        }
+
         public Task<bool> InitializeAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
         {
             // Initialization still "succeeds" so a stored GitHub configuration keeps

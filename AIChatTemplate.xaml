@@ -58,14 +58,44 @@
                                 <TextBlock Text="MCP" 
                                            FontSize="10" FontWeight="Bold" Foreground="White" />
                             </Border>
-                            <TextBlock Text="{Binding TokenUsage}" 
-                                       FontSize="10" 
+                            <!-- Context window: the bar carries the proportion, the text the
+                                 absolute numbers, including how much room is left. Hidden
+                                 entirely for models whose window we do not know, rather than
+                                 drawing a reassuring bar from a guess. -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0"
+                                        Visibility="{Binding HasContextUsage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Border Width="56" Height="6" CornerRadius="3" Margin="0,0,5,0"
+                                        Background="{StaticResource TertiaryBackgroundBrush}"
+                                        VerticalAlignment="Center"
+                                        Visibility="{Binding HasContextWindow, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="{Binding ContextUsage}">
+                                    <ProgressBar Minimum="0" Maximum="100"
+                                                 Value="{Binding ContextPercent, Mode=OneWay}"
+                                                 Height="6"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Foreground="{Binding ContextBrush}"/>
+                                </Border>
+                                <TextBlock Text="{Binding ContextUsage}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource SecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           ToolTip="{Binding TokenUsage}"/>
+                            </StackPanel>
+
+                            <!-- Session totals and estimated cost -->
+                            <TextBlock Text="{Binding SessionUsage}"
+                                       FontSize="10"
+                                       Opacity="0.75"
                                        Foreground="{StaticResource SecondaryBrush}"
                                        VerticalAlignment="Center"
-                                       Margin="0,0,5,0"/>
+                                       Margin="0,0,8,0"
+                                       ToolTip="Tokens sent and received in this conversation. The cost is an estimate from published list prices."
+                                       Visibility="{Binding HasSessionUsage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
                             <!-- Quota usage -->
-                            <TextBlock Text="{Binding QuotaUsage}" 
-                                       FontSize="10" 
+                            <TextBlock Text="{Binding QuotaUsage}"
+                                       FontSize="10"
                                        Foreground="Goldenrod"
                                        VerticalAlignment="Center"
                                        Visibility="{Binding HasQuotaUsage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
@@ -245,25 +275,85 @@
                                                     <Setter Property="Background" Value="{StaticResource NotificationErrorBrush}"/>
                                                     <Setter Property="BorderBrush" Value="{StaticResource NotificationErrorBrush}"/>
                                                 </DataTrigger>
+                                                <!-- The activity trace is deliberately quieter than the
+                                                     conversation: same column as the assistant, but
+                                                     transparent and unframed, so the eye reads the
+                                                     answers first and the work only when looked for. -->
+                                                <DataTrigger Binding="{Binding IsActivity}" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Padding" Value="8,2"/>
+                                                    <Setter Property="Opacity" Value="0.8"/>
+                                                </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <StackPanel MaxWidth="500">
-                                        <TextBox Text="{Binding Content, Mode=OneWay}" 
-                                                 TextWrapping="Wrap" 
-                                                 IsReadOnly="True"
-                                                 BorderThickness="0"
-                                                 Background="Transparent"
-                                                 Foreground="{StaticResource PrimaryBrush}"
-                                                 Padding="0"
-                                                 Margin="0"/>
-                                        <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}" 
-                                                   FontSize="10" 
-                                                   Opacity="0.5"
-                                                   Foreground="{StaticResource PrimaryBrush}"
-                                                   HorizontalAlignment="Right"
-                                                   Margin="0,4,0,0"/>
-                                    </StackPanel>
+                                    <Grid MaxWidth="500">
+                                        <!-- Conversation entry -->
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActivity}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBox Text="{Binding Content, Mode=OneWay}"
+                                                     TextWrapping="Wrap"
+                                                     IsReadOnly="True"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Foreground="{StaticResource PrimaryBrush}"
+                                                     Padding="0"
+                                                     Margin="0"/>
+                                            <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}"
+                                                       FontSize="10"
+                                                       Opacity="0.5"
+                                                       Foreground="{StaticResource PrimaryBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <!-- Activity trace: headline always visible, detail on demand -->
+                                        <StackPanel Visibility="{Binding IsActivity, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                                          HorizontalAlignment="Left"
+                                                          Background="Transparent"
+                                                          BorderThickness="0"
+                                                          Padding="0"
+                                                          Cursor="Hand"
+                                                          ToolTip="Show what the assistant did to answer this">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Summary}"
+                                                               FontSize="11"
+                                                               FontStyle="Italic"
+                                                               Foreground="{StaticResource PrimaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" ▾" FontSize="10" Opacity="0.6"
+                                                               Foreground="{StaticResource PrimaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </ToggleButton>
+                                            <!-- Even opened, the trace is bounded: a long tool
+                                                 sequence scrolls inside its own box instead of
+                                                 pushing the conversation off the screen. -->
+                                            <TextBox Text="{Binding Content, Mode=OneWay}"
+                                                     Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                     MaxHeight="160"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     TextWrapping="Wrap"
+                                                     IsReadOnly="True"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     FontFamily="Consolas"
+                                                     FontSize="11"
+                                                     Foreground="{StaticResource PrimaryBrush}"
+                                                     Padding="0"
+                                                     Margin="6,3,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -271,9 +361,16 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Thinking / working indicator -->
-            <Border Grid.Row="2" Margin="0,5,0,0" Padding="10,6" CornerRadius="5"
+            <!-- Thinking / working indicator. It shares the chat's row on purpose, floating
+                 over the conversation, so it must be anchored to the bottom: stretched (the
+                 WPF default) its background painted over the entire message area and the
+                 chat looked empty for the whole length of a request. -->
+            <Border Grid.Row="2" Margin="6,0,6,6" Padding="10,6" CornerRadius="5"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Stretch"
                     Background="{StaticResource SecondaryBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
                     Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="🤔" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>

@@ -65,6 +65,23 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
+        /// Switch the active provider to another model without re-initializing it.
+        /// Returns false when the requested provider is not the active, initialized one,
+        /// which is the caller's signal that a real initialization is still needed.
+        /// </summary>
+        public bool TryUpdateModel(AIProviderType provider, string? modelId)
+        {
+            if (_activeProvider == null || _activeProviderType != provider)
+            {
+                return false;
+            }
+
+            _activeProvider.UpdateModel(modelId);
+            Logger.Info($"AI Service: {_activeProvider.DisplayName} now using model '{modelId}' (no re-initialization)");
+            return true;
+        }
+
+        /// <summary>
         /// Test connection for a specific provider
         /// </summary>
         public async Task<bool> TestConnectionAsync(AIProviderConfig config, CancellationToken cancellationToken = default)

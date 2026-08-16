@@ -15,6 +15,8 @@
 - **Image Analysis**: FITS header reading, HFR/FWHM monitoring, star detection, quality assessment
 - **Dockable Chat Panel**: Integrated AI chat within NINA's imaging tab
 - **Knowledge Wiki (second brain)**: A local markdown knowledge base the assistant consults before answering — your equipment quirks, solved problems and site notes take precedence over the model's general knowledge
+- **Activity trace**: See what the assistant is doing while it answers — one line for the tool in progress, expandable afterwards into the full sequence with each call's arguments and outcome
+- **Context and cost readout**: How full the model's context window is, how many tokens are left, and what the conversation has cost so far
 - **Extensible**: Connect external MCP servers for astronomy calculations, weather, catalogs
 
 ## Installation
