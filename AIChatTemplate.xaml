@@ -58,17 +58,34 @@
                                 <TextBlock Text="MCP" 
                                            FontSize="10" FontWeight="Bold" Foreground="White" />
                             </Border>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="11"
+                                   Opacity="0.7"
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Margin="0,2,0,0"/>
+
+                        <!-- Usage strip. On its own line, and wrapping, because the panel is
+                             docked and narrow: crammed next to the model name these figures
+                             collided with each other and with the quota, which is exactly
+                             the state they were unreadable in. Each group is labelled, since
+                             three sets of token counts side by side are meaningless without
+                             saying which is which. -->
+                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <!-- Context window: the bar carries the proportion, the text the
                                  absolute numbers, including how much room is left. Hidden
                                  entirely for models whose window we do not know, rather than
                                  drawing a reassuring bar from a guess. -->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0"
-                                        Visibility="{Binding HasContextUsage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Width="56" Height="6" CornerRadius="3" Margin="0,0,5,0"
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,2"
+                                        Visibility="{Binding HasContextUsage, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="{Binding TokenUsage}">
+                                <TextBlock Text="Context" FontSize="10" Opacity="0.6" Margin="0,0,5,0"
+                                           Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                                <Border Width="52" Height="6" CornerRadius="3" Margin="0,0,5,0"
                                         Background="{StaticResource TertiaryBackgroundBrush}"
                                         VerticalAlignment="Center"
-                                        Visibility="{Binding HasContextWindow, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        ToolTip="{Binding ContextUsage}">
+                                        Visibility="{Binding HasContextWindow, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <ProgressBar Minimum="0" Maximum="100"
                                                  Value="{Binding ContextPercent, Mode=OneWay}"
                                                  Height="6"
@@ -78,34 +95,32 @@
                                 </Border>
                                 <TextBlock Text="{Binding ContextUsage}"
                                            FontSize="10"
-                                           Foreground="{StaticResource SecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           ToolTip="{Binding TokenUsage}"/>
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           VerticalAlignment="Center"/>
                             </StackPanel>
 
                             <!-- Session totals and estimated cost -->
-                            <TextBlock Text="{Binding SessionUsage}"
-                                       FontSize="10"
-                                       Opacity="0.75"
-                                       Foreground="{StaticResource SecondaryBrush}"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0"
-                                       ToolTip="Tokens sent and received in this conversation. The cost is an estimate from published list prices."
-                                       Visibility="{Binding HasSessionUsage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,2"
+                                        Visibility="{Binding HasSessionUsage, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Tokens sent and received in this conversation. The cost is an estimate from published list prices.">
+                                <TextBlock Text="Session" FontSize="10" Opacity="0.6" Margin="0,0,5,0"
+                                           Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SessionUsage}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
 
-                            <!-- Quota usage -->
+                            <!-- Provider rate-limit budget -->
                             <TextBlock Text="{Binding QuotaUsage}"
                                        FontSize="10"
+                                       Opacity="0.8"
                                        Foreground="Goldenrod"
                                        VerticalAlignment="Center"
+                                       Margin="0,0,0,2"
+                                       ToolTip="How much of the provider's rate limit is left"
                                        Visibility="{Binding HasQuotaUsage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </StackPanel>
-                        
-                        <TextBlock Text="{Binding StatusMessage}" 
-                                   FontSize="11" 
-                                   Opacity="0.7"
-                                   Foreground="{StaticResource PrimaryBrush}"
-                                   Margin="0,2,0,0"/>
+                        </WrapPanel>
                     </StackPanel>
                     <Button Grid.Column="1" 
                             Content="⏹ Stop" 

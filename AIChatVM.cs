@@ -351,6 +351,28 @@ namespace NINA.Plugin.AIAssistant
             "#5CB85C";
 
         /// <summary>
+        /// The provider's rate-limit budget, in the same compact units as everything else.
+        /// Raw counts like "11971000/12000000 tokens" are unreadable at a glance and were
+        /// the loudest thing in the header; "12.0M left of 12.0M" says the same in a form
+        /// the eye can take in.
+        /// </summary>
+        private static string FormatQuota(string? requestsLeft, string? requestsLimit, string? tokensLeft, string? tokensLimit)
+        {
+            string Compact(string? raw) =>
+                long.TryParse(raw, out var value) ? ModelLimits.FormatTokens(value) : (raw ?? "?");
+
+            var requests = string.IsNullOrEmpty(requestsLimit)
+                ? $"{Compact(requestsLeft)} req"
+                : $"{Compact(requestsLeft)}/{Compact(requestsLimit)} req";
+
+            var tokens = string.IsNullOrEmpty(tokensLimit)
+                ? $"{Compact(tokensLeft)} tok"
+                : $"{Compact(tokensLeft)}/{Compact(tokensLimit)} tok";
+
+            return $"API left {requests} · {tokens}";
+        }
+
+        /// <summary>
         /// Folds one exchange into the readout. The input tokens of a request are the whole
         /// prompt - system, tools and history included - so they are the size of the
         /// context at that moment, not just of the question that was typed.
@@ -385,7 +407,7 @@ namespace NINA.Plugin.AIAssistant
                 _sessionCostKnown = true;
             }
 
-            var totals = $"session ↑{ModelLimits.FormatTokens(_sessionInputTokens)} ↓{ModelLimits.FormatTokens(_sessionOutputTokens)}";
+            var totals = $"↑{ModelLimits.FormatTokens(_sessionInputTokens)} ↓{ModelLimits.FormatTokens(_sessionOutputTokens)}";
             SessionUsage = _sessionCostKnown ? $"{totals} · ~${_sessionCost:0.000}" : totals;
         }
 
@@ -840,7 +862,7 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                     
                     if (!string.IsNullOrEmpty(reqRem) && !string.IsNullOrEmpty(tokRem))
                     {
-                        QuotaUsage = $"Quota: {reqRem}/{reqLim} req | {tokRem}/{tokLim} tokens";
+                        QuotaUsage = FormatQuota(reqRem, reqLim, tokRem, tokLim);
                     }
                 }
                 else
@@ -906,7 +928,7 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                 {
                      var reqRem = response.Metadata.ContainsKey("requests_remaining") ? response.Metadata["requests_remaining"]?.ToString() : null;
                      var tokRem = response.Metadata.ContainsKey("tokens_remaining") ? response.Metadata["tokens_remaining"]?.ToString() : null;
-                     if (!string.IsNullOrEmpty(reqRem)) QuotaUsage = $"Quota: {reqRem} req | {tokRem} tokens";
+                     if (!string.IsNullOrEmpty(reqRem)) QuotaUsage = FormatQuota(reqRem, null, tokRem, null);
                 }
 
                 Messages.Add(new ChatMessage
