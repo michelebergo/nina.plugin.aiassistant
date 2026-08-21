@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.4.0")]
-[assembly: AssemblyFileVersion("2.5.4.0")]
+[assembly: AssemblyVersion("2.5.5.0")]
+[assembly: AssemblyFileVersion("2.5.5.0")]
 
 // Plugin metadata - aligned with NINA manifest standards
 [assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
@@ -33,10 +33,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("ScreenshotURL", "")]
 [assembly: AssemblyMetadata("AltScreenshotURL", "")]
 [assembly: AssemblyMetadata("ChangelogURL", "https://github.com/michelebergo/nina.plugin.aiassistant/releases")]
-[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,GitHub Models,Mistral,Ollama,Orchestrator")]
+[assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,Knowledge Wiki,Mistral,Ollama,Orchestrator")]
 
 // Short description (required by NINA plugin manager)
-[assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control, dynamic model discovery, image analysis, and extensible tool framework for intelligent astrophotography automation")]
+[assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control, a local knowledge wiki it consults before answering, image analysis, and an extensible tool framework for astrophotography automation")]
 
 // Long description
 [assembly: AssemblyMetadata("LongDescription", @"Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.
@@ -55,7 +55,18 @@ using System.Runtime.InteropServices;
 • OpenAI GPT - Most capable reasoning for complex planning
 • Anthropic Claude - Best for equipment control via MCP
 Dynamic model discovery ensures you always have latest AI capabilities.
-(GitHub Models was retired by GitHub on July 30, 2026 and no longer works.)
+(GitHub Models stays in the list for anyone who had it selected, but GitHub retired the service on July 30, 2026: it refuses every request and says which providers still work. New installations open on Ollama, the one choice that needs no API key.)
+
+📚 KNOWLEDGE WIKI (SECOND BRAIN):
+A local markdown knowledge base at %LOCALAPPDATA%\NINA\llmwiki that the assistant searches before it answers. What you know about your own rig - the focuser that needs a nudge below freezing, the flat panel that reads high with the Ha filter, the mount's habit at the meridian - takes precedence over the model's general knowledge, and the page it used is cited so you can check it.
+• Seeded on first use with troubleshooting checklists and templates
+• 'Remember this' saves a durable fact, always behind a confirmation dialog showing the exact text before anything is written
+• Shared with AI Weather, which files a daily sky digest into the same wiki
+• Plain markdown you can read and edit in any editor - nothing locked in a database
+
+👁️ YOU CAN SEE WHAT IT IS DOING:
+• Activity trace: while the assistant uses tools, a line shows the step in progress, then settles into a summary that expands into the full sequence with each call's outcome - a tool that failed or returned nothing is no longer indistinguishable from one that worked
+• Context and cost readout: how full the model's context window is, the tokens used and how many are left, session totals and an estimated cost. Models whose window is unknown - local Ollama models among them - show the count without a bar rather than an invented percentage
 
 🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):
 Control your entire observatory through conversation:
@@ -65,7 +76,7 @@ Control your entire observatory through conversation:
 • Filter Wheel: Change filters, get positions, optimize filter rotation
 • Guiding: Start/stop PHD2, dither, analyze drift
 • Platesolving: Solve images, sync mount, analyze pointing accuracy
-100+ built-in MCP tools for complete observatory control.
+150+ built-in MCP tools for complete observatory control.
 
 📊 IMAGE ANALYSIS:
 • FITS Header Reading, Star Detection, HFR/FWHM monitoring

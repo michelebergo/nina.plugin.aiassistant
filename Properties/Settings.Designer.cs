@@ -28,7 +28,11 @@ namespace NINA.Plugin.AIAssistant.Properties {
         // Active Provider Selection
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("GitHub")]
+        // Ollama, not GitHub. GitHub Models was retired on 2026-07-30, so a fresh install used to
+        // open on a provider that cannot work and fail the user's first message with an error
+        // telling them to change provider. Ollama is the one choice that needs no key: if it is
+        // not installed the failure names a local address, which points at a fix.
+        [global::System.Configuration.DefaultSettingValueAttribute("Ollama")]
         public string SelectedProvider {
             get {
                 return ((string)(this["SelectedProvider"]));

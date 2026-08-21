@@ -34,37 +34,43 @@ namespace NINA.Plugin.AIAssistant
         {
             Title = "AI Assistant";
             
-            // Create a chat bubble icon with sparkle
+            // The same mark as the plugin's icon, drawn as geometry for the imaging tab:
+            // a speech bubble with three dots and a star beside it.
+            //
+            // The group fills EvenOdd, so anything drawn inside the bubble becomes a hole
+            // rather than an overlay - which is how the dots are made, and which is why the
+            // star has to sit clear of the bubble instead of on top of it. The previous
+            // version overlapped them and punched a star-shaped hole in the bubble.
             var geometry = new GeometryGroup();
-            
-            // Chat bubble (rounded rectangle)
-            var bubble = new RectangleGeometry(new System.Windows.Rect(2, 2, 12, 10), 2, 2);
-            geometry.Children.Add(bubble);
-            
-            // Small tail for chat bubble
+            geometry.Children.Add(new RectangleGeometry(new System.Windows.Rect(1, 3, 11, 8), 2, 2));
+
             var tail = new PathGeometry();
-            var figure = new PathFigure { StartPoint = new System.Windows.Point(4, 12) };
+            var figure = new PathFigure { StartPoint = new System.Windows.Point(3, 10) };
             figure.Segments.Add(new LineSegment(new System.Windows.Point(2, 14), true));
-            figure.Segments.Add(new LineSegment(new System.Windows.Point(6, 12), true));
+            figure.Segments.Add(new LineSegment(new System.Windows.Point(6, 11), true));
+            figure.IsClosed = true;
             tail.Figures.Add(figure);
             geometry.Children.Add(tail);
-            
-            // Sparkle/star effect (AI indicator)
+
+            // Three dots, punched out of the bubble by the fill rule.
+            foreach (var x in new[] { 4.0, 6.5, 9.0 }) {
+                geometry.Children.Add(new EllipseGeometry(new System.Windows.Point(x, 7), 0.9, 0.9));
+            }
+
+            // A four-pointed star, clear of the bubble so it stays a star.
             var star = new PathGeometry();
-            var starFig = new PathFigure { StartPoint = new System.Windows.Point(12, 3) };
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(13, 5), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(15, 4), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(13.5, 6), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(14, 8), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(12, 7), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(10, 8), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(10.5, 6), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(9, 4), true));
-            starFig.Segments.Add(new LineSegment(new System.Windows.Point(11, 5), true));
+            var starFig = new PathFigure { StartPoint = new System.Windows.Point(13.6, 0.6) };
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(14.3, 2.3), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(16.0, 3.0), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(14.3, 3.7), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(13.6, 5.4), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(12.9, 3.7), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(11.2, 3.0), true));
+            starFig.Segments.Add(new LineSegment(new System.Windows.Point(12.9, 2.3), true));
             starFig.IsClosed = true;
             star.Figures.Add(starFig);
             geometry.Children.Add(star);
-            
+
             geometry.Freeze();
             ImageGeometry = geometry;
 

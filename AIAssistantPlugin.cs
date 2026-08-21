@@ -276,7 +276,9 @@ namespace NINA.Plugin.AIAssistant
                 {
                     return provider;
                 }
-                return AIProviderType.GitHub;
+                // Same reason as the stored default: an unreadable setting must not land on a
+                // provider that was retired.
+                return AIProviderType.Ollama;
             }
             set
             {

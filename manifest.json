@@ -1,7 +1,7 @@
 {
   "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
   "Name": "AI Assistant",
-  "Version": "2.5.4.0",
+  "Version": "2.5.5.0",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -13,28 +13,39 @@
     "Assistant",
     "Chat",
     "MCP",
-    "Image Analysis",
     "Automation",
-    "GitHub Models",
+    "Image Analysis",
+    "Knowledge Wiki",
     "Mistral",
     "Ollama",
     "Orchestrator"
   ],
   "Description": {
     "short": {
-      "EN": "Intelligent AI assistant that transforms NINA into a conversational imaging system for better astrophotography results"
+      "EN": "Multi-provider AI assistant with MCP equipment control, a local knowledge wiki it consults before answering, image analysis, and an extensible tool framework for astrophotography automation"
     },
     "long": {
-      "EN": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\n🔭 FOR ASTROPHOTOGRAPHERS:\n• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\n• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\n• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\n• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\n• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\n🤖 5 AI PROVIDERS (Free to Advanced):\nOllama (local, free), Google Gemini (free tier), Mistral AI (free tier), OpenAI GPT, Anthropic Claude. Dynamic model discovery ensures you always have latest AI capabilities.\n\n🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation: 'Connect camera and mount, cool to -10°C, unpark', 'Slew to Orion Nebula, center it, start guiding', 'Take 5-minute Ha exposure, then switch to OIII'. 100+ built-in MCP tools for cameras, mounts, focusers, filter wheels, rotators, dome control, guiding, platesolving. MCP now supports Anthropic Claude, Google Gemini, AND Ollama (local models).\n\n📊 INTELLIGENT IMAGING ANALYSIS:\nHFR monitoring, star detection, background assessment, exposure evaluation, pattern recognition for tracking issues.\n\n🔧 WORKFLOW AUTOMATION:\nMulti-target planning, adaptive sequences, equipment coordination, error recovery, session management.\n\n🛠️ EXTENSIBILITY:\nConnect external Python MCP servers for astronomy calculations, weather integration, catalog queries, custom automation.\n\nTransform complex equipment control and imaging workflows into simple conversations."
+      "EN": "Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.\n\n🔭 FOR ASTROPHOTOGRAPHERS:\n• Quick Session Setup: 'Set up for M31 tonight' - AI configures equipment, cooling, filters, and exposure settings\n• Real-Time Troubleshooting: Analyze failed frames, high HFR, guiding issues, poor focus - get instant suggestions\n• Image Quality Feedback: AI reviews your captures, identifies problems (tracking, focus, star bloat), suggests corrections\n• Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging\n• Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times\n\n🤖 5 AI PROVIDERS (Free to Advanced):\n• Ollama (Local) - Privacy-focused, works offline, no API costs, no key\n• Google Gemini - Free API tier, fast responses, MCP equipment control support\n• Mistral AI - Free API tier, European-hosted models for chat, reasoning and coding\n• OpenAI GPT - Most capable reasoning for complex planning\n• Anthropic Claude - Best for equipment control via MCP\nDynamic model discovery ensures you always have latest AI capabilities.\n(GitHub Models stays in the list for anyone who had it selected, but GitHub retired the service on July 30, 2026: it refuses every request and says which providers still work. New installations open on Ollama, the one choice that needs no API key.)\n\n📚 KNOWLEDGE WIKI (SECOND BRAIN):\nA local markdown knowledge base at %LOCALAPPDATA%\\NINA\\llmwiki that the assistant searches before it answers. What you know about your own rig - the focuser that needs a nudge below freezing, the flat panel that reads high with the Ha filter, the mount's habit at the meridian - takes precedence over the model's general knowledge, and the page it used is cited so you can check it.\n• Seeded on first use with troubleshooting checklists and templates\n• 'Remember this' saves a durable fact, always behind a confirmation dialog showing the exact text before anything is written\n• Shared with AI Weather, which files a daily sky digest into the same wiki\n• Plain markdown you can read and edit in any editor - nothing locked in a database\n\n👁️ YOU CAN SEE WHAT IT IS DOING:\n• Activity trace: while the assistant uses tools, a line shows the step in progress, then settles into a summary that expands into the full sequence with each call's outcome - a tool that failed or returned nothing is no longer indistinguishable from one that worked\n• Context and cost readout: how full the model's context window is, the tokens used and how many are left, session totals and an estimated cost. Models whose window is unknown - local Ollama models among them - show the count without a bar rather than an invented percentage\n\n🎛️ NATURAL LANGUAGE EQUIPMENT CONTROL (via MCP):\nControl your entire observatory through conversation:\n• Camera: Take exposures, adjust cooling, bin settings, gain control\n• Mount: GOTO coordinates, slew, park/unpark, tracking control\n• Focuser: Move absolute/relative, run autofocus, temperature compensation\n• Filter Wheel: Change filters, get positions, optimize filter rotation\n• Guiding: Start/stop PHD2, dither, analyze drift\n• Platesolving: Solve images, sync mount, analyze pointing accuracy\n150+ built-in MCP tools for complete observatory control.\n\n📊 IMAGE ANALYSIS:\n• FITS Header Reading, Star Detection, HFR/FWHM monitoring\n• Statistics Analysis, Quality Assessment with actionable recommendations\n• Vision API Integration for advanced image understanding\n\n🔌 EXTENSIBLE ARCHITECTURE:\n• Built-in MCP Server via NINA Advanced API plugin\n• External MCP Servers for community tools\n• Dynamic model discovery and custom model IDs\n• Optional nina.autopilot Orchestrator dashboard integration\n\nTransform complex equipment control and imaging workflows into simple conversations."
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.5.5.0",
+      "Date": "2026-08-21",
+      "Changes": [
+        "New icon, and the same mark in N.I.N.A.'s imaging tab strip. The old icon was white on a transparent background — it disappeared against a light theme — and the tab icon was a different drawing altogether, so the plugin looked like two plugins depending on where you saw it. Both are now the same monochrome speech bubble",
+        "FIXED: the tab icon's star was drawn on top of the bubble, and with the fill rule in use that punched a star-shaped hole in it instead of placing a star beside it",
+        "The usage readout now fits a docked panel: crammed onto the title row the three groups of figures collided and were cut off. They sit on their own labelled line that wraps with the panel width, and the provider's rate-limit budget is shown in the same compact units as everything else (12.0M rather than 11971000)",
+        "A new installation now opens on Ollama instead of GitHub Models. GitHub retired that service on 30 July 2026, so the old default meant a fresh install failed its first message with an error telling the user to change provider. Ollama is the only choice that needs no API key. Nothing changes for anyone who has already picked a provider, and GitHub stays in the list - labelled as retired - so an existing selection is not silently rewritten",
+        "The official plugin description now covers the Knowledge Wiki, the activity trace and the context and cost readout, none of which it mentioned; the retired GitHub Models service is no longer used as a search tag"
+      ]
+    },
     {
       "Version": "2.5.4.0",
       "Date": "2026-08-16",
       "Changes": [
         "Activity trace in the chat: while the assistant uses tools, a single line shows the step in progress (the tool and its arguments), then settles into a summary that expands into the full sequence with each call's outcome — a tool that failed or returned nothing is no longer indistinguishable from one that worked. Same for Claude, Gemini and Ollama; a question answered without tools leaves no trace",
-        "Context and cost readout: a bar showing how full the model's context window is (amber past two thirds, red past ninety percent), the tokens used and how many are left, plus session totals and an estimated cost. Models whose window is unknown — including local Ollama models — show the token count without a bar rather than an invented percentage. The figures sit on their own labelled line that wraps with the panel width, and the provider's rate-limit budget is shown in the same compact units (12.0M rather than 11971000)",
+        "Context and cost readout: a bar showing how full the model's context window is (amber past two thirds, red past ninety percent), the tokens used and how many are left, plus session totals and an estimated cost. Models whose window is unknown — including local Ollama models — show the token count without a bar rather than an invented percentage",
         "FIXED: changing the model no longer rebuilds the connection. Each settings write fired its own fire-and-forget re-initialization, and one edit writes several settings, so up to eight ran concurrently with no ordering guarantee and the surviving configuration was the one that finished last, not the one chosen last. A model change now updates the model alone; everything else is coalesced into a single initialization",
         "FIXED: the chat header showed the previous model after picking another model of the same provider, which is what made the change look like it had not been applied",
         "FIXED: the 'working' indicator covered the whole conversation during every request — its background stretched over the message area, so the chat looked empty until the answer arrived"

@@ -56,7 +56,7 @@ namespace NINA.Plugin.AIAssistant.AI
     /// </summary>
     public class AIProviderConfig
     {
-        public AIProviderType Provider { get; set; } = AIProviderType.GitHub;
+        public AIProviderType Provider { get; set; } = AIProviderType.Ollama;
         public string? ApiKey { get; set; }
         public string? ModelId { get; set; } = "gpt-4o-mini";
         public string? Endpoint { get; set; } // For Ollama or custom endpoints
@@ -203,7 +203,7 @@ namespace NINA.Plugin.AIAssistant.AI
         {
             return provider switch
             {
-                AIProviderType.GitHub => "GitHub Models (Free)",
+                AIProviderType.GitHub => "GitHub Models (Retired)",
                 AIProviderType.OpenAI => "OpenAI (Paid)",
                 AIProviderType.Anthropic => "Anthropic Claude (Paid)",
                 AIProviderType.Google => "Google Gemini (Free tier)",

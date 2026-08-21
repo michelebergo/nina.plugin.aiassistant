@@ -5,11 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.5.0] - 2026-08-21
+
+### Changed
+- **New icon, and the same mark in the imaging tab strip.** The old icon was white on a transparent background, so it vanished against a light theme, and the tab icon was a different drawing altogether - a bubble with a sparkle rather than the bubble with three dots on the plugin list. The plugin looked like two plugins depending on where you saw it. Both surfaces now carry the same monochrome mark.
+- **The usage readout fits a docked panel.** Crammed onto the title row the three groups of figures collided and were cut off, and the raw quota counts (`11971000/12000000`) were the loudest unreadable thing there. They now sit on a dedicated line that wraps, each group labelled, with the provider budget in the same compact units as everything else (`12.0M`).
+
+- **A new installation opens on Ollama, not GitHub Models.** GitHub retired that service on 30 July 2026,
+  and the plugin still defaulted to it: a fresh install failed its very first message with an error telling
+  the user to change provider. Ollama is the one choice that needs no API key, and when it is not installed
+  the failure names a local address, which points at a fix. Nothing changes for anyone who has already chosen
+  a provider - GitHub remains in the list, labelled as retired, rather than having an existing selection
+  silently rewritten underneath them.
+- **The official plugin description now describes the plugin.** The Knowledge Wiki, the activity trace and
+  the context and cost readout were missing from it entirely, so the page people read before installing
+  still described version 2.5.2. The retired provider was also still listed as a search tag.
+
+### Fixed
+- **The tab icon's star punched a hole in the bubble.** The geometry group fills with the even-odd rule, and the star was drawn overlapping the bubble, so the overlap cancelled instead of adding: what rendered was a star-shaped hole. The star now sits clear of the bubble, and the three dots - which *are* meant to be holes - are what the rule is used for.
+
 ## [2.5.4.0] - 2026-08-16
 
 ### Added
 - **Activity trace in the chat** - when the assistant uses tools to answer, a single line shows what it is doing right now (`🔧 Calling: nina_slew_to_coordinates (target=M31)`), then settles into a summary (`⚙ 3 tool calls`) that expands into the full sequence. Each call reports its arguments and its outcome, so a tool that failed or returned nothing is no longer indistinguishable from one that worked. Same trace for Claude, Gemini and Ollama; a question answered without tools leaves nothing behind.
-- **Context and cost readout in the header** - a bar showing how full the model's context window is (amber past two thirds, red past ninety percent), the tokens used and how many are left, plus the session totals and an estimated cost. Models whose context window is not known - including local Ollama models, whose window is set by the model file - show the token count without a bar rather than an invented percentage. The figures sit on their own labelled line that wraps with the panel width, and the provider's rate-limit budget is now shown in the same compact units (`12.0M` rather than `11971000`) instead of raw counts.
+- **Context and cost readout in the header** - a bar showing how full the model's context window is (amber past two thirds, red past ninety percent), the tokens used and how many are left, plus the session totals and an estimated cost. Models whose context window is not known - including local Ollama models, whose window is set by the model file - show the token count without a bar rather than an invented percentage.
 
 ### Fixed
 - **Changing the model no longer rebuilds the connection.** Every settings write fired its own fire-and-forget re-initialization, and one edit in the options writes several settings: up to eight of them ran concurrently with no ordering guarantee, so the configuration left active was the one that happened to finish last, not the one chosen last. A model change now updates the model alone - it travels in each request payload, it is not connection state - and everything else is coalesced into a single initialization with a gate that prevents overlap.
