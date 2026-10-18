@@ -144,9 +144,17 @@ If it is useful for your astrophotography or automation workflow, you can suppor
 
 Your support helps cover development tools, testing hardware, hosting and future features.
 
-## License
+## License and names
 
-This project is licensed under the Mozilla Public License 2.0 - see the [LICENSE.txt](LICENSE.txt) file for details.
+AI Assistant is released under the Mozilla Public License 2.0 — see [LICENSE.txt](LICENSE.txt).
+
+**Author: Michele Bergo.** Every copy and every derivative work must keep the copyright
+notice and credit Michele Bergo as the original author, as the license requires. The MPL
+grants no rights to names (section 2.3): "AI Weather", "AI Assistant" and "OpenCode" (for
+N.I.N.A.) are the names of Michele Bergo's plugins, and a fork or derivative work must be
+published under a different name — not one of these nor a confusable variant such as
+"AI Weather Advanced" — with its own plugin identifier (GUID), and must not present Michele
+Bergo as the author of the modified version. See [NOTICE](NOTICE).
 
 ## Acknowledgments
 
