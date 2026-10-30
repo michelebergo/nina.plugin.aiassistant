@@ -33,7 +33,10 @@ jobs:
       - name: Build .NET Assemblies
         run: |
           dotnet restore
-          dotnet build "${{ env.PLUGIN_SLN_NAME }}.sln" -c Release -p:PostBuildEvent= -p:Version=${{ github.ref_name }} -o ./bin/Release
+          # The plugin project, not the solution: the solution also holds the test project,
+          # which references this one, and building both into one output folder makes two
+          # compilers write the same DLL at once (CS2012) - and would ship NUnit in the zip.
+          dotnet build "${{ env.PLUGIN_DLL_NAME }}.csproj" -c Release -p:PostBuildEvent= -p:Version=${{ github.ref_name }} -o ./bin/Release
 
       - name: Prepare package
         run: |
