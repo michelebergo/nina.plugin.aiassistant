@@ -34,10 +34,31 @@
 
 ## Configuration
 
-1. Go to **Options → Plugins → AI Assistant**
-2. Select your AI provider
-3. Enter your API key (not required for Ollama; Google Gemini and Mistral offer free API tiers). For Ollama, the model's "thinking" phase is disabled by default ("Disable model thinking" toggle in the Ollama section) so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
-4. Start chatting in the dockable AI panel
+The options page is laid out in the order you set things up:
+
+1. **AI provider** – pick one (see the table below first), paste the key (not needed for Ollama; Google Gemini and Mistral offer free API tiers), choose the model, press Test. For Ollama, the model's "thinking" phase is disabled by default ("Disable model thinking") so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
+2. **Equipment control** – enable MCP and point it at the NINA Advanced API plugin (host and port, Test connection). With a chat-only provider this section says so instead of disappearing.
+3. **Your rig** – whether a short summary of your active NINA profile (site, telescope, camera, image paths) travels with each message so the assistant stops guessing your own equipment. On by default; the exact text goes to the NINA log every time it changes.
+4. **External MCP servers** and **Autopilot connection** – advanced, optional.
+
+Then start chatting in the dockable AI panel.
+
+### What each provider can do
+
+Not every provider can drive your equipment. Check this before buying credits.
+
+| Provider | Cost | Chat | Equipment control (MCP) | External MCP servers |
+|---|---|---|---|---|
+| Ollama | free, runs on your machine | ✅ | ✅ with a tool-capable model (llama3.1+, qwen2.5, …) | ✅ |
+| Google Gemini | free tier | ✅ | ✅ | ✅ |
+| Anthropic Claude | paid | ✅ | ✅ | ✅ |
+| OpenAI | paid | ✅ | ❌ chat only | ❌ |
+| Mistral AI | free tier / paid | ✅ | ❌ chat only | ❌ |
+| GitHub Models | — | ❌ retired by GitHub on 30 July 2026 | ❌ | ❌ |
+
+"Equipment control" means the assistant receives the NINA tool definitions, calls them (status, connect, capture, slew, …) and sees the results. OpenAI and Mistral have no tool loop in this plugin yet, so with them the assistant answers questions but will tell you it cannot access NINA; the provider selector and the chat's welcome line say so too. Tool calling for both is planned ([#10](https://github.com/michelebergo/nina.plugin.aiassistant/issues/10)).
+
+If you want an agent that works your equipment with any provider and model you like, including OpenAI, see [OpenCode for N.I.N.A.](https://github.com/michelebergo/nina.plugin.opencode): it drives the opencode agent with NINA's tools via `nina_mcp_server`, and is the plugin meant for the more advanced, agentic use.
 
 ## Knowledge Wiki
 

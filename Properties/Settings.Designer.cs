@@ -179,6 +179,22 @@ namespace NINA.Plugin.AIAssistant.Properties {
             }
         }
 
+        // On by default: without it the assistant answers questions about the user's own rig -
+        // focal length, sampling, where the frames go - from general knowledge, which is to say
+        // it guesses. What is sent is a handful of lines, written to the NINA log on every
+        // composition so it can always be inspected.
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool SendProfileSummary {
+            get {
+                return ((bool)(this["SendProfileSummary"]));
+            }
+            set {
+                this["SendProfileSummary"] = value;
+            }
+        }
+
         // MCP (Model Context Protocol) Settings for NINA Advanced API
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

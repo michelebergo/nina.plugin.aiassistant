@@ -67,7 +67,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     new
                     {
                         role = "system",
-                        content = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so."
+                        content = SystemPromptComposer.Compose(request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.", request.ProfileContext)
                     }
                 };
                 if (request.History != null)

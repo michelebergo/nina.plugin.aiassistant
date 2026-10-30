@@ -67,6 +67,7 @@ namespace NINA.Plugin.AIAssistant
                     RaisePropertyChanged(nameof(IsOllamaSelected));
                     RaisePropertyChanged(nameof(IsMistralSelected));
                     RaisePropertyChanged(nameof(IsMCPProviderSelected));
+                    RaisePropertyChanged(nameof(IsChatOnlyProviderSelected));
                 }
             }
         }
@@ -77,9 +78,8 @@ namespace NINA.Plugin.AIAssistant
         public bool IsGoogleSelected => SelectedProviderInternal == AIProviderType.Google;
         public bool IsOllamaSelected => SelectedProviderInternal == AIProviderType.Ollama;
         public bool IsMistralSelected => SelectedProviderInternal == AIProviderType.Mistral;
-        public bool IsMCPProviderSelected => SelectedProviderInternal == AIProviderType.Anthropic || 
-                                              SelectedProviderInternal == AIProviderType.Google || 
-                                              SelectedProviderInternal == AIProviderType.Ollama;
+        public bool IsMCPProviderSelected => AI.ProviderCapabilities.CanControlEquipment(SelectedProviderInternal);
+        public bool IsChatOnlyProviderSelected => AI.ProviderCapabilities.IsChatOnly(SelectedProviderInternal);
 
         [ImportingConstructor]
         public AIAssistantPlugin(IProfileService profileService, 
@@ -514,6 +514,47 @@ namespace NINA.Plugin.AIAssistant
         #endregion
 
         #region MCP (Model Context Protocol) Settings
+
+        private string? lastLoggedProfileContext;
+
+        /// <summary>
+        /// The profile block for the request about to be sent, or null when the user has turned
+        /// it off or the profile says nothing usable. Composed fresh each time: the user can
+        /// change telescope mid-session, and a cached rig would then be a confident lie.
+        /// </summary>
+        public string? BuildProfileContext()
+        {
+            if (!SendProfileSummary) return null;
+
+            var block = AI.ProfileSummary.Build(AI.ProfileFactsReader.Read(profileService));
+            if (block == null) return null;
+
+            // Logged in full the first time and whenever it changes: what is sent to a third
+            // party should be readable by the person who sent it, without repeating identical
+            // lines into the log on every message.
+            if (block != lastLoggedProfileContext)
+            {
+                Logger.Info($"AI Assistant: profile summary now travelling with each request:\n{block}");
+                lastLoggedProfileContext = block;
+            }
+            return block;
+        }
+
+        /// <summary>
+        /// Whether a short summary of the active NINA profile travels with each request. See
+        /// <see cref="AI.ProfileSummary"/> for exactly what it contains; it is written to the
+        /// NINA log every time it is composed, so what left the machine is always on record.
+        /// </summary>
+        public bool SendProfileSummary
+        {
+            get => Settings.Default.SendProfileSummary;
+            set
+            {
+                Settings.Default.SendProfileSummary = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
 
         public bool MCPEnabled
         {

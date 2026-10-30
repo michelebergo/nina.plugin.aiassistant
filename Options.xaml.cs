@@ -72,21 +72,7 @@ namespace NINA.Plugin.AIAssistant
             var statusText = FindTextBlock("ProviderStatusText", comboBox);
             if (statusText == null) return;
 
-            var provider = plugin.SelectedProvider;
-            string status = provider switch
-            {
-                AIProviderType.Anthropic when plugin.MCPEnabled => "✓ MCP-enabled for NINA control",
-                AIProviderType.Anthropic => "Claude AI (enable MCP for equipment control)",
-                AIProviderType.Google when plugin.MCPEnabled => "✓ MCP-enabled for NINA control",
-                AIProviderType.Google => "Google Gemini (enable MCP for equipment control)",
-                AIProviderType.Ollama when plugin.MCPEnabled => "✓ MCP-enabled for NINA control",
-                AIProviderType.Ollama => "Local AI models (enable MCP for equipment control)",
-                AIProviderType.GitHub => "Using GitHub-hosted models",
-                AIProviderType.OpenAI => "Using OpenAI API",
-                AIProviderType.Mistral => "Using Mistral AI API",
-                _ => ""
-            };
-            statusText.Text = status;
+            statusText.Text = ProviderStatusLine.Describe(plugin.SelectedProvider, plugin.MCPEnabled);
         }
 
         #endregion
@@ -301,7 +287,7 @@ namespace NINA.Plugin.AIAssistant
                 else
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    ShowResult(resultTextBlock, $"❌ Invalid API key: {response.StatusCode}", Colors.Salmon);
+                    ShowResult(resultTextBlock, "❌ " + AI.ApiErrorDescription.Describe((int)response.StatusCode, content), Colors.Salmon);
                 }
             }
             catch (Exception ex)
@@ -394,7 +380,7 @@ namespace NINA.Plugin.AIAssistant
                 else
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    ShowResult(resultTextBlock, $"❌ Invalid API key: {response.StatusCode}", Colors.Salmon);
+                    ShowResult(resultTextBlock, "❌ " + AI.ApiErrorDescription.Describe((int)response.StatusCode, responseContent), Colors.Salmon);
                 }
             }
             catch (Exception ex)
@@ -558,7 +544,8 @@ namespace NINA.Plugin.AIAssistant
                 }
                 else
                 {
-                    ShowResult(resultTextBlock, $"❌ Ollama responded with: {response.StatusCode}", Colors.Salmon);
+                    var ollamaError = await response.Content.ReadAsStringAsync();
+                    ShowResult(resultTextBlock, "❌ " + AI.ApiErrorDescription.Describe((int)response.StatusCode, ollamaError), Colors.Salmon);
                 }
             }
             catch (HttpRequestException)
@@ -643,7 +630,8 @@ namespace NINA.Plugin.AIAssistant
                 }
                 else
                 {
-                    ShowResult(resultTextBlock, $"❌ Invalid API key: {response.StatusCode}", Colors.Salmon);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    ShowResult(resultTextBlock, "❌ " + AI.ApiErrorDescription.Describe((int)response.StatusCode, responseContent), Colors.Salmon);
                 }
             }
             catch (Exception ex)
@@ -720,6 +708,15 @@ namespace NINA.Plugin.AIAssistant
             Process.Start(new ProcessStartInfo
             {
                 FileName = "https://github.com/michelebergo/nina_mcp_server",
+                UseShellExecute = true
+            });
+        }
+
+        private void GetOpenCodePlugin_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/michelebergo/nina.plugin.opencode",
                 UseShellExecute = true
             });
         }

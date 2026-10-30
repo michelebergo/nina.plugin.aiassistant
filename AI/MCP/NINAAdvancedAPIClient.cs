@@ -1480,11 +1480,21 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                 new MCPTool
                 {
                     Name = "nina_show_profile",
-                    Description = "Show profile information. Use active=true to see only the active profile, or active=false to see all profiles.",
+                    // Named for what it holds, not for the endpoint it calls: the previous
+                    // wording ("Show profile information") shared no word with any question a
+                    // user actually asks, so among 150 tools this one was never reached for
+                    // questions it alone can answer.
+                    Description = "Read the user's NINA profile: observing site (latitude, longitude, elevation), " +
+                                  "telescope (focal length, focal ratio), camera (pixel size, binning, cooling), " +
+                                  "filter wheel, guiding, plate solving, where images are written and which " +
+                                  "sequence templates are used. This is the authority on the user's own equipment " +
+                                  "and site - prefer it over general knowledge, and never guess these values. " +
+                                  "Ask for one section at a time: the whole profile is very large.",
                     InputSchema = new MCPToolInputSchema
                     {
                         Properties = new Dictionary<string, MCPToolParameter>
                         {
+                            ["section"] = new MCPToolParameter { Type = "string", Description = "Which part to read: astrometry (site), telescope, camera, filterwheel, guiding, platesolving, imaging (file paths), sequence, dome, rotator, flat, weather, safety. Omit only if you genuinely need everything." },
                             ["active"] = new MCPToolParameter { Type = "boolean", Description = "If true, show only the active profile (default: false shows all profiles)" }
                         }
                     }
@@ -1803,6 +1813,16 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
 
                 if (response.IsSuccessStatusCode)
                 {
+                    if (toolName == "nina_show_profile")
+                    {
+                        // The endpoint answers with the entire settings tree, which on a model
+                        // with a small context window is one answer and no conversation left.
+                        object? section = null;
+                        arguments?.TryGetValue("section", out section);
+                        responseContent = ProfileSectionFilter.Apply(responseContent, section?.ToString())
+                                          ?? responseContent;
+                    }
+
                     var result = JObject.Parse(responseContent);
                     return new MCPToolResult
                     {
@@ -2435,7 +2455,12 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
         {
             if (args.TryGetValue("active", out var active))
                 return $"profile/show?active={active.ToString()?.ToLower()}";
-            return "profile/show";
+
+            // Default to the active profile. Asked about "my telescope", a model that omitted
+            // the flag used to receive every profile ever configured - several settings trees
+            // at once, in a payload the section filter cannot even trim, since the shape is a
+            // list of profiles rather than one profile's sections.
+            return "profile/show?active=true";
         }
 
         private string BuildChangeProfileEndpoint(Dictionary<string, object> args)

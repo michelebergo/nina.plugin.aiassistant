@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.5.0")]
-[assembly: AssemblyFileVersion("2.5.5.0")]
+[assembly: AssemblyVersion("2.5.6.0")]
+[assembly: AssemblyFileVersion("2.5.6.0")]
 
 // Plugin metadata - aligned with NINA manifest standards
 [assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
@@ -49,12 +49,12 @@ using System.Runtime.InteropServices;
 • Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
 
 🤖 5 AI PROVIDERS (Free to Advanced):
-• Ollama (Local) - Privacy-focused, works offline, no API costs, no key
-• Google Gemini - Free API tier, fast responses, MCP equipment control support
-• Mistral AI - Free API tier, European-hosted models for chat, reasoning and coding
-• OpenAI GPT - Most capable reasoning for complex planning
+• Ollama (Local) - Privacy-focused, works offline, no API costs, no key; equipment control with a tool-capable model
+• Google Gemini - Free API tier, fast responses, equipment control via MCP
 • Anthropic Claude - Best for equipment control via MCP
-Dynamic model discovery ensures you always have latest AI capabilities.
+• OpenAI GPT - Chat only: strong reasoning for planning and troubleshooting, no equipment control in this plugin yet
+• Mistral AI - Chat only: free API tier, European-hosted models, no equipment control in this plugin yet
+Dynamic model discovery ensures you always have latest AI capabilities. The provider selector, the options page and the chat's first message all say which kind you have picked, so nobody buys credits for a provider that cannot drive NINA.
 (GitHub Models stays in the list for anyone who had it selected, but GitHub retired the service on July 30, 2026: it refuses every request and says which providers still work. New installations open on Ollama, the one choice that needs no API key.)
 
 📚 KNOWLEDGE WIKI (SECOND BRAIN):

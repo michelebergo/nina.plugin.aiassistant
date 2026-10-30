@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- The plugin project xcopies itself into the live NINA plugin folder after every
+         build. That is right for a deploy, wrong for a test run: it fails outright while
+         NINA is open and holding the DLL. Building the tests must not depend on NINA
+         being closed. -->
+    <SkipPluginDeploy>true</SkipPluginDeploy>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />
+    <PackageReference Include="NUnit.Analyzers" Version="3.6.1" />
+    <PackageReference Include="coverlet.collector" Version="3.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NINA.Plugin.AIAssistant.csproj" AdditionalProperties="SkipPluginDeploy=true" />
+  </ItemGroup>
+
+</Project>

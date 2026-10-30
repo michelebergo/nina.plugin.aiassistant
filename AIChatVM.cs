@@ -86,25 +86,10 @@ namespace NINA.Plugin.AIAssistant
             StopResponseCommand = new MvvmRelayCommand(StopResponse);
 
             // Add welcome message
-            var mcpEnabled = AIAssistantPlugin.Instance?.MCPEnabled ?? false;
-            var welcomeMsg = "Hello! I'm your AI assistant for astrophotography. Ask me anything about:\n\n" +
-                         "• Equipment settings and optimization\n" +
-                         "• Target selection and planning\n" +
-                         "• Image processing tips\n" +
-                         "• Troubleshooting issues\n\n";
-            
-            if (mcpEnabled)
-            {
-                welcomeMsg += "🤖 **MCP Control Enabled** - I can directly control your NINA equipment!\n" +
-                             "Try: \"Connect to NINA\", \"Show equipment status\", \"Take a 10s exposure\"\n\n";
-            }
-            
-            welcomeMsg += "Make sure you've configured your API key in the plugin settings!";
-            
             Messages.Add(new ChatMessage
             {
                 Role = "assistant",
-                Content = welcomeMsg,
+                Content = BuildWelcomeMessage(),
                 Timestamp = DateTime.Now
             });
 
@@ -205,6 +190,17 @@ namespace NINA.Plugin.AIAssistant
 
                 // Update CurrentModel when provider or its model changes
                 CurrentModel = AIAssistantPlugin.Instance?.SelectedModelId ?? "Default Model";
+
+                // The welcome line states what the current provider can do; a provider chosen
+                // after the panel opened must not leave the previous provider's promise on
+                // screen. Only the first message is ever the welcome.
+                RunOnUIThread(() =>
+                {
+                    if (Messages.Count > 0 && Messages[0].Role == "assistant")
+                    {
+                        Messages[0].Content = BuildWelcomeMessage();
+                    }
+                });
 
                 // Update status message to prompt for re-init matching the new provider
                 if (AIAssistantPlugin.Instance?.MCPEnabled == true) {
@@ -463,6 +459,13 @@ namespace NINA.Plugin.AIAssistant
         /// Progress arrives from the provider's worker thread, while the trace lines land
         /// in a bound collection, so every update is marshalled to the UI thread.
         /// </summary>
+        private static string BuildWelcomeMessage()
+        {
+            var plugin = AIAssistantPlugin.Instance;
+            return WelcomeMessage.Build(plugin?.SelectedProviderInternal ?? AIProviderType.Ollama,
+                                        plugin?.MCPEnabled ?? false);
+        }
+
         private static void RunOnUIThread(Action action)
         {
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
@@ -742,9 +745,7 @@ namespace NINA.Plugin.AIAssistant
                 string? systemPrompt = null; // Let the provider use its own system prompt for MCP
                 
                 var mcpEnabled = plugin.MCPEnabled;
-                var isMCPProvider = _aiService?.ActiveProviderType == AIProviderType.Anthropic || 
-                                    _aiService?.ActiveProviderType == AIProviderType.Google ||
-                                    _aiService?.ActiveProviderType == AIProviderType.Ollama;
+                var isMCPProvider = _aiService != null && ProviderCapabilities.CanControlEquipment(_aiService.ActiveProviderType);
                 
                 // Let MCP-capable providers (Anthropic, Google) use their own MCP system prompt
                 if (!mcpEnabled || !isMCPProvider)
@@ -788,6 +789,10 @@ Keep responses concise but accurate. Use proper astrophotography terminology.";
                 {
                     Prompt = userMsg,
                     SystemPrompt = systemPrompt,
+                    // Kept out of SystemPrompt on purpose: when MCP is on, the line above leaves
+                    // it null so each provider can use its own, and anything written here would
+                    // be discarded. The providers append this themselves.
+                    ProfileContext = plugin.BuildProfileContext(),
                     MaxTokens = 1024,
                     Temperature = 0.7,
                     History = history,

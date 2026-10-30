@@ -133,7 +133,7 @@ namespace NINA.Plugin.AIAssistant.AI
             // The alias tracks Google's latest stable Flash release; concrete version IDs
             // get retired out from under a hardcoded fallback (gemini-2.0-flash-001 did).
             var modelId = _config!.ModelId ?? "gemini-flash-latest";
-            var systemInstruction = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
+            var systemInstruction = SystemPromptComposer.Compose(request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.", request.ProfileContext);
 
             var contents = new List<object>();
             if (request.History != null)
@@ -253,7 +253,7 @@ namespace NINA.Plugin.AIAssistant.AI
             }).ToList();
 
             var modelId = _config!.ModelId ?? "gemini-flash-latest";
-            var systemInstruction = request.SystemPrompt ?? GetMCPSystemPrompt();
+            var systemInstruction = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
             Logger.Debug($"GoogleProvider: Using system prompt: {systemInstruction.Substring(0, Math.Min(100, systemInstruction.Length))}...");
             
             var allToolResults = new List<string>();
@@ -648,6 +648,7 @@ Available functions include:
 - nina_connect_all_equipment: Connect all equipment at once (USE THIS when asked to 'connect all' instead of calling individual connect tools)
 - nina_disconnect_all_equipment: Disconnect all equipment at once (USE THIS when asked to 'disconnect all' instead of calling individual disconnect tools)
 - nina_get_status: Get equipment status (USE THIS when asked about equipment status)
+- nina_show_profile: The user's own site, telescope, camera and file paths (USE THIS instead of guessing focal length, focal ratio, pixel size, coordinates or where images are written; pass section= to read one part at a time). The profile is the authority on this user's equipment - your general knowledge is not.
 - nina_get_version: Get NINA version
 - nina_connect_camera, nina_disconnect_camera, nina_capture_image: Camera control
 - nina_connect_mount, nina_disconnect_mount, nina_slew_mount, nina_park_mount: Mount control

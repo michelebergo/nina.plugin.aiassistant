@@ -6,324 +6,234 @@
 
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
+    <!-- Options View Template - must use key pattern: <PluginName>_Options.
+         Sections follow the order in which a user sets the plugin up: provider, then what the
+         assistant may do, then what it knows, then the advanced extras. Secondary text uses the
+         theme's disabled brush so it reads in both light and dark themes. -->
     <DataTemplate x:Key="AI Assistant_Options">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Orientation="Vertical" Margin="10">
-                
-                <TextBlock Text="AI Assistant Configuration" FontSize="18" FontWeight="Bold" Margin="0,0,0,5"/>
-                <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" FontSize="12" Opacity="0.7">
-                    <Run Text="Intelligent AI-powered assistant for NINA with advanced capabilities:"/><LineBreak/>
-                    <Run Text="• Multiple AI Providers: Ollama (local, free), Google Gemini, Mistral, OpenAI, Anthropic Claude"/><LineBreak/>
-                    <Run Text="• MCP Equipment Control: Natural language control of cameras, mounts, focusers, filter wheels, guiding, platesolving"/><LineBreak/>
-                    <Run Text="• Image Analysis: Intelligent feedback on captures, HFR, star detection, and quality assessment"/><LineBreak/>
-                    <Run Text="• Dynamic Model Discovery: Automatically fetches latest available AI models from providers"/><LineBreak/>
-                    <Run Text="• Custom Model Support: Enter any model ID manually when new models are released or providers update"/><LineBreak/>
-                    <Run Text="• Extensible Architecture: Built-in + external MCP servers for custom tool integration"/>
-                </TextBlock>
 
-                <GroupBox Header="Active Provider" Margin="0,0,0,10">
-                    <StackPanel Margin="5">
-                        <ComboBox x:Name="ProviderSelector" 
-                                  Loaded="ProviderSelector_Loaded"
-                                  SelectionChanged="ProviderSelector_Changed" 
-                                  HorizontalAlignment="Left" MinWidth="250">
-                            <ComboBoxItem Content="GitHub Models (RETIRED)" Tag="GitHub"/>
-                            <ComboBoxItem Content="OpenAI (PAID)" Tag="OpenAI"/>
-                            <ComboBoxItem Content="Anthropic Claude (MCP)" Tag="Anthropic"/>
-                            <ComboBoxItem Content="Google Gemini (FREE)" Tag="Google"/>
-                            <ComboBoxItem Content="Ollama (LOCAL)" Tag="Ollama"/>
-                            <ComboBoxItem Content="Mistral AI (PAID)" Tag="Mistral"/>
-                        </ComboBox>
-                        <TextBlock x:Name="ProviderStatusText" Margin="0,5,0,0" FontSize="11" Opacity="0.7"/>
-                    </StackPanel>
-                </GroupBox>
+                <!-- ===== AI provider ===== -->
+                <TextBlock Text="AI provider" FontWeight="Bold" FontSize="14" Margin="0,0,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="Pick a provider, give it the key, choose the model, then press Test. Ollama runs on your own machine and needs no key; Google Gemini and Mistral have free tiers. For equipment control pick Anthropic Claude, Google Gemini or Ollama." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
 
-                <!-- GitHub Models -->
-                <GroupBox Header="GitHub Models (RETIRED)" Margin="0,0,0,10" Visibility="{Binding IsGitHubSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="GitHub retired this service on July 30, 2026 — it no longer works for anyone. Switch to Ollama (local, free), Google Gemini or Mistral (free tiers)." FontSize="11" Foreground="Salmon" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                        <TextBlock Text="GitHub Personal Access Token:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox x:Name="GitHubTokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="GitHubToken_Loaded" PasswordChanged="GitHubToken_Changed"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestGitHubKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Token" Click="GetGitHubToken_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="GitHubTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="GitHubModelComboBox" SelectedValue="{Binding GitHubModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="200" Loaded="GitHubModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
-                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
-                        <TextBox x:Name="GitHubCustomModelBox" Text="{Binding GitHubModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., gpt-4o-mini, Llama-3.3-70B-Instruct)"/>
-                    </StackPanel>
-                </GroupBox>
+                <TextBlock Text="Provider:" Margin="0,0,0,2"/>
+                <ComboBox x:Name="ProviderSelector"
+                          Loaded="ProviderSelector_Loaded"
+                          SelectionChanged="ProviderSelector_Changed"
+                          HorizontalAlignment="Left" MinWidth="300">
+                    <!-- Retired: shown only to someone who still has it selected, so their
+                         saved choice is not rewritten under them; everyone else never sees it. -->
+                    <ComboBoxItem Content="GitHub Models (RETIRED)" Tag="GitHub" Visibility="{Binding IsGitHubSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <ComboBoxItem Content="Ollama (LOCAL, equipment control)" Tag="Ollama"/>
+                    <ComboBoxItem Content="Google Gemini (FREE TIER, equipment control)" Tag="Google"/>
+                    <ComboBoxItem Content="Anthropic Claude (PAID, equipment control)" Tag="Anthropic"/>
+                    <ComboBoxItem Content="OpenAI (PAID, chat only)" Tag="OpenAI"/>
+                    <ComboBoxItem Content="Mistral AI (PAID, chat only)" Tag="Mistral"/>
+                </ComboBox>
+                <TextBlock x:Name="ProviderStatusText" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
 
-                <!-- OpenAI -->
-                <GroupBox Header="OpenAI (PAID)" Margin="0,0,0,10" Visibility="{Binding IsOpenAISelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="GPT-4, GPT-4o, o1 models - Requires OpenAI account with credits" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
-                        <TextBlock Text="OpenAI API Key:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox x:Name="OpenAITokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="OpenAIToken_Loaded" PasswordChanged="OpenAIToken_Changed"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestOpenAIKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Key" Click="GetOpenAIKey_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="OpenAITestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="OpenAIModelComboBox" SelectedValue="{Binding OpenAIModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="200" Loaded="OpenAIModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
-                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
-                        <TextBox x:Name="OpenAICustomModelBox" Text="{Binding OpenAIModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., gpt-4o, gpt-4-turbo, o1-preview)"/>
+                <!-- GitHub Models (retired) -->
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsGitHubSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="GitHub retired this service on 30 July 2026 - it no longer works for anyone. Switch to Ollama (local, free), Google Gemini or Mistral (free tiers)." Foreground="Salmon" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <TextBlock Text="GitHub Personal Access Token:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <PasswordBox x:Name="GitHubTokenBox" Width="360" Loaded="GitHubToken_Loaded" PasswordChanged="GitHubToken_Changed"/>
+                        <Button Content="Test" Click="TestGitHubKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get token" Click="GetGitHubToken_Click" Margin="8,0,0,0" Padding="10,2"/>
                     </StackPanel>
-                </GroupBox>
-
-                <!-- Anthropic -->
-                <GroupBox Header="Anthropic Claude (PAID)" Margin="0,0,0,10" Visibility="{Binding IsAnthropicSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="Claude 3.5 Sonnet, Opus, Haiku - Requires Anthropic account" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
-                        <TextBlock Text="Anthropic API Key:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox x:Name="AnthropicTokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="AnthropicToken_Loaded" PasswordChanged="AnthropicToken_Changed"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestAnthropicKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Key" Click="GetAnthropicKey_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="AnthropicTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="AnthropicModelComboBox" SelectedValue="{Binding AnthropicModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="250" Loaded="AnthropicModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
-                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
-                        <TextBox x:Name="AnthropicCustomModelBox" Text="{Binding AnthropicModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., claude-sonnet-4-20250514, claude-3-7-sonnet-20250219)"/>
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- Google Gemini -->
-                <GroupBox Header="Google Gemini (FREE TIER)" Margin="0,0,0,10" Visibility="{Binding IsGoogleSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="Gemini 1.5 Flash/Pro - Free tier available with Google AI Studio" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
-                        <TextBlock Text="Google API Key:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox x:Name="GoogleTokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="GoogleToken_Loaded" PasswordChanged="GoogleToken_Changed"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestGoogleKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Key" Click="GetGoogleKey_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="GoogleTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="GoogleModelComboBox" SelectedValue="{Binding GoogleModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="200" Loaded="GoogleModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
-                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
-                        <TextBox x:Name="GoogleCustomModelBox" Text="{Binding GoogleModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., gemini-2.0-flash-001, gemini-2.5-pro, gemini-1.5-pro)"/>
-                    </StackPanel>
-                </GroupBox>
+                    <TextBlock x:Name="GitHubTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Model:" Margin="0,10,0,2"/>
+                    <ComboBox x:Name="GitHubModelComboBox" SelectedValue="{Binding GitHubModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="300" Loaded="GitHubModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                    <TextBlock Text="Or enter a model ID:" Margin="0,8,0,2" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
+                    <TextBox x:Name="GitHubCustomModelBox" Text="{Binding GitHubModelId, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left"/>
+                </StackPanel>
 
                 <!-- Ollama -->
-                <GroupBox Header="Ollama (LOCAL/FREE)" Margin="0,0,0,10" Visibility="{Binding IsOllamaSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="Run AI models locally - Completely free, no API key needed" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
-                        <TextBlock Text="Ollama Server URL:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="350" HorizontalAlignment="Left" Margin="0" LostFocus="OllamaEndpoint_LostFocus"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestOllama_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Ollama" Click="GetOllama_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="OllamaTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model (auto-detected from the server):" Margin="0,10,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" HorizontalAlignment="Left" MinWidth="200" Loaded="OllamaModel_Loaded" DropDownOpened="OllamaModelCombo_DropDownOpened"/>
-                            <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="6,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                        <TextBlock Text="Tip: Run 'ollama pull modelname' to download models. The list auto-detects installed models from the server (open the dropdown or click Refresh to update)." FontSize="10" Opacity="0.5" Margin="0,5,0,0" TextWrapping="Wrap"/>
-                        <CheckBox Content="Disable model thinking (recommended)" IsChecked="{Binding OllamaDisableThinking, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
-                        <TextBlock Text="Thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) reason at length before answering, which can multiply response times. Turn off only on fast hardware." FontSize="10" Opacity="0.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
-                            <Run Text="Remote model on your LAN: set the Server URL above to http://&lt;other-pc-ip&gt;:11434 (e.g. http://192.168.1.50:11434)."/><LineBreak/>
-                            <Run Text="On that machine, start Ollama with OLLAMA_HOST=0.0.0.0 so it accepts network connections, and allow port 11434 through its firewall."/><LineBreak/>
-                            <Run Text="Equipment control and external MCP servers still run on this NINA PC; only the model inference is remote. Use a tool-capable model (e.g. qwen2.5, llama3.1) for MCP/web tools."/>
-                        </TextBlock>
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsOllamaSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Ollama server URL:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBox Text="{Binding OllamaEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="360" LostFocus="OllamaEndpoint_LostFocus"/>
+                        <Button Content="Test" Click="TestOllama_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get Ollama" Click="GetOllama_Click" Margin="8,0,0,0" Padding="10,2"/>
                     </StackPanel>
-                </GroupBox>
+                    <TextBlock x:Name="OllamaTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Model (read from the server):" Margin="0,10,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <ComboBox x:Name="OllamaModelComboBox" SelectedValue="{Binding OllamaModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" IsEditable="True" MinWidth="300" Loaded="OllamaModel_Loaded" DropDownOpened="OllamaModelCombo_DropDownOpened"/>
+                        <Button Content="Refresh" Click="RefreshOllamaModels_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                    <TextBlock Text="Run 'ollama pull modelname' to download a model; the list shows what the server has. For equipment control and external tools use a tool-capable model (qwen2.5, llama3.1 or newer)." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <CheckBox Content="Disable model thinking (recommended)" IsChecked="{Binding OllamaDisableThinking, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                    <TextBlock Text="Thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) reason at length before answering, which can multiply response times. Turn off only on fast hardware." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <TextBlock TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Foreground="{DynamicResource ButtonForegroundDisabledBrush}" Margin="0,8,0,0">
+                        <Run Text="Model on another PC of your LAN: set the URL above to http://&lt;other-pc-ip&gt;:11434 and start Ollama there with OLLAMA_HOST=0.0.0.0, with port 11434 open in its firewall. Equipment control still runs on this NINA PC; only the model is remote."/>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Google Gemini -->
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsGoogleSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Google API key:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <PasswordBox x:Name="GoogleTokenBox" Width="360" Loaded="GoogleToken_Loaded" PasswordChanged="GoogleToken_Changed"/>
+                        <Button Content="Test" Click="TestGoogleKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get key" Click="GetGoogleKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                    <TextBlock x:Name="GoogleTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Free tier from Google AI Studio; the model list is fetched live with the key." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <TextBlock Text="Model:" Margin="0,10,0,2"/>
+                    <ComboBox x:Name="GoogleModelComboBox" SelectedValue="{Binding GoogleModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="300" Loaded="GoogleModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                    <TextBlock Text="Or enter a model ID:" Margin="0,8,0,2" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
+                    <TextBox x:Name="GoogleCustomModelBox" Text="{Binding GoogleModelId, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" ToolTip="Any model ID, e.g. gemini-flash-latest, gemini-2.5-pro"/>
+                </StackPanel>
+
+                <!-- Anthropic -->
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsAnthropicSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Anthropic API key:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <PasswordBox x:Name="AnthropicTokenBox" Width="360" Loaded="AnthropicToken_Loaded" PasswordChanged="AnthropicToken_Changed"/>
+                        <Button Content="Test" Click="TestAnthropicKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get key" Click="GetAnthropicKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                    <TextBlock x:Name="AnthropicTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Requires an Anthropic account with credit; the model list is fetched live with the key." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <TextBlock Text="Model:" Margin="0,10,0,2"/>
+                    <ComboBox x:Name="AnthropicModelComboBox" SelectedValue="{Binding AnthropicModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="300" Loaded="AnthropicModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                    <TextBlock Text="Or enter a model ID:" Margin="0,8,0,2" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
+                    <TextBox x:Name="AnthropicCustomModelBox" Text="{Binding AnthropicModelId, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" ToolTip="Any model ID, e.g. claude-sonnet-4-5-20250929"/>
+                </StackPanel>
+
+                <!-- OpenAI -->
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsOpenAISelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Chat only: OpenAI cannot read or control your NINA equipment from this plugin yet (no tool calling). For equipment control choose Anthropic Claude, Google Gemini or Ollama." Foreground="Salmon" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <TextBlock Text="OpenAI API key:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <PasswordBox x:Name="OpenAITokenBox" Width="360" Loaded="OpenAIToken_Loaded" PasswordChanged="OpenAIToken_Changed"/>
+                        <Button Content="Test" Click="TestOpenAIKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get key" Click="GetOpenAIKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                    <TextBlock x:Name="OpenAITestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Requires an OpenAI account with credit; the model list is fetched live with the key." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <TextBlock Text="Model:" Margin="0,10,0,2"/>
+                    <ComboBox x:Name="OpenAIModelComboBox" SelectedValue="{Binding OpenAIModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="300" Loaded="OpenAIModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                    <TextBlock Text="Or enter a model ID:" Margin="0,8,0,2" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
+                    <TextBox x:Name="OpenAICustomModelBox" Text="{Binding OpenAIModelId, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" ToolTip="Any model ID, e.g. gpt-4o, gpt-4.1-mini"/>
+                </StackPanel>
 
                 <!-- Mistral AI -->
-                <GroupBox Header="Mistral AI (PAID)" Margin="0,0,0,10" Visibility="{Binding IsMistralSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock Text="Mistral Large, Medium, Small, Mixtral - Requires Mistral AI account" FontSize="11" Opacity="0.6" Margin="0,0,0,8"/>
-                        <TextBlock Text="Mistral API Key:" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox x:Name="MistralTokenBox" Width="350" HorizontalAlignment="Left" Margin="0" Loaded="MistralToken_Loaded" PasswordChanged="MistralToken_Changed"/>
-                            <Button Grid.Column="1" Content="Test" Click="TestMistralKey_Click" Margin="3,0,0,0" MinWidth="50" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="2" Content="Get Key" Click="GetMistralKey_Click" Margin="3,0,0,0" MinWidth="70" HorizontalAlignment="Left"/>
-                        </Grid>
-                        <TextBlock x:Name="MistralTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        <TextBlock Text="Model:" Margin="0,10,0,5"/>
-                        <ComboBox x:Name="MistralModelComboBox" SelectedValue="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="200" Loaded="MistralModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
-                        <TextBlock Text="Or enter custom model ID:" Margin="0,10,0,5" FontSize="11" Opacity="0.7"/>
-                        <TextBox x:Name="MistralCustomModelBox" Text="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" Width="250" HorizontalAlignment="Left" ToolTip="Enter any model ID (e.g., mistral-large-latest, open-mixtral-8x7b, codestral-latest)"/>
+                <StackPanel Margin="0,10,0,0" Visibility="{Binding IsMistralSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Chat only: Mistral cannot read or control your NINA equipment from this plugin yet (no tool calling). For equipment control choose Anthropic Claude, Google Gemini or Ollama." Foreground="Salmon" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <TextBlock Text="Mistral API key:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <PasswordBox x:Name="MistralTokenBox" Width="360" Loaded="MistralToken_Loaded" PasswordChanged="MistralToken_Changed"/>
+                        <Button Content="Test" Click="TestMistralKey_Click" Margin="8,0,0,0" Padding="10,2"/>
+                        <Button Content="Get key" Click="GetMistralKey_Click" Margin="8,0,0,0" Padding="10,2"/>
                     </StackPanel>
-                </GroupBox>
-
-                <!-- MCP Section (visible for Anthropic, Google, and Ollama) -->
-                <GroupBox Header="🤖 MCP - NINA Equipment Control" Margin="0,0,0,10" Visibility="{Binding IsMCPProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <StackPanel Margin="5">
-                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">When using Anthropic Claude, Google Gemini, or Ollama (with tool-capable models), enable MCP (Model Context Protocol) to give AI direct control over your NINA equipment via the Advanced API plugin.</TextBlock>
-                        
-                        <CheckBox Content="Enable MCP for Equipment Control" IsChecked="{Binding MCPEnabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                        
-                        <TextBlock Text="NINA Advanced API Settings:" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <TextBlock Text="Requires: NINA Advanced API plugin installed and enabled" FontSize="10" Opacity="0.5" Margin="0,0,0,8"/>
-                        
-                        <Grid Margin="0,0,0,5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Host:" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1" Text="{Binding MCPNinaHost, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" MinWidth="150"/>
-                        </Grid>
-                        
-                        <Grid Margin="0,0,0,5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Port:" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1" Text="{Binding MCPNinaPort, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" MinWidth="80"/>
-                            <Button Grid.Column="2" Content="Test Connection" Click="TestMCPConnection_Click" Margin="10,0,0,0" MinWidth="100" HorizontalAlignment="Left"/>
-                        </Grid>
-                        
-                        <TextBlock x:Name="MCPTestResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-                        
-                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,10,0,0">With MCP enabled, you can ask the AI to: "Connect all equipment", "Take a 30s exposure of M31", "Cool camera to -10°C", "Start guiding", and more!</TextBlock>
-                        
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
-                            <Button Content="Get Advanced API Plugin" Click="GetAdvancedAPIPlugin_Click" MinWidth="140"/>
-                            <Button Content="MCP GitHub Repo" Click="GetMCPRepo_Click" Margin="10,0,0,0" MinWidth="120"/>
-                        </StackPanel>
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- External MCP Server Configuration -->
-                <GroupBox Header="🔧 External MCP Servers (Advanced)" Margin="0,0,0,10">
-                    <StackPanel Margin="5">
-                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,0,0,8">
-                            Connect one or more external MCP servers to extend AI capabilities beyond NINA equipment control.
-                            Use the standard mcpServers JSON format (the same used by Claude Desktop and VS Code). Each server can be
-                            python, node, npx, docker, or any executable. Works with Google Gemini and Ollama providers.
-                        </TextBlock>
-
-                        <TextBlock Text="MCP Servers (JSON):" Margin="0,0,0,5"/>
-                        <TextBox x:Name="ExternalMCPServersBox"
-                                 Text="{Binding ExternalMCPServersJson, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
-                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                 FontFamily="Consolas" MinHeight="140" MinWidth="450" HorizontalAlignment="Left"
-                                 ToolTip="Standard mcpServers JSON. Add multiple servers under the mcpServers object."/>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
-                            <Button Content="Validate" Click="ValidateExternalMCP_Click" MinWidth="80"/>
-                            <Button Content="Reset to NINA Default" Click="ResetExternalMCP_Click" Margin="10,0,0,0" MinWidth="140"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
-                            <TextBlock Text="Useful servers:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <ComboBox x:Name="UsefulServersCombo" MinWidth="190" SelectedIndex="0">
-                                <ComboBoxItem Content="Fetch (web pages)" Tag="fetch"/>
-                                <ComboBoxItem Content="DuckDuckGo Search (free)" Tag="ddg-search"/>
-                                <ComboBoxItem Content="Brave Search (API key)" Tag="brave-search"/>
-                                <ComboBoxItem Content="Context7 docs (API key)" Tag="context7"/>
-                                <ComboBoxItem Content="Memory" Tag="memory"/>
-                                <ComboBoxItem Content="Sequential Thinking" Tag="sequential-thinking"/>
-                                <ComboBoxItem Content="Wikipedia" Tag="wikipedia"/>
-                                <ComboBoxItem Content="arXiv papers" Tag="arxiv"/>
-                                <ComboBoxItem Content="Time" Tag="time"/>
-                                <ComboBoxItem Content="Filesystem (NINA logs)" Tag="filesystem"/>
-                                <ComboBoxItem Content="Everything (test server)" Tag="everything"/>
-                            </ComboBox>
-                            <Button Content="Add to Config" Click="AddUsefulServer_Click" Margin="6,0,0,0" MinWidth="100" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                        <TextBlock x:Name="ExternalMCPValidateResult" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"/>
-
-                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,10,0,0">
-                            <Run Text="Example (two servers):"/><LineBreak/>
-                            <Run Text="{}{ &quot;mcpServers&quot;: {"/><LineBreak/>
-                            <Run Text="    &quot;nina-api&quot;: { &quot;command&quot;: &quot;python&quot;, &quot;args&quot;: [&quot;nina_advanced_api_mcp_server.py&quot;] },"/><LineBreak/>
-                            <Run Text="    &quot;weather&quot;: { &quot;command&quot;: &quot;npx&quot;, &quot;args&quot;: [&quot;-y&quot;, &quot;weather-mcp&quot;], &quot;env&quot;: { &quot;API_KEY&quot;: &quot;...&quot; } }"/><LineBreak/>
-                            <Run Text="} }"/><LineBreak/>
-                            <Run Text="Tool name collisions across servers are auto-prefixed with the server name."/>
-                        </TextBlock>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
-                            <Button Content="Documentation" Click="GetExternalMCPDocs_Click" MinWidth="120"/>
-                            <Button Content="Example Server" Click="GetExternalMCPExample_Click" Margin="10,0,0,0" MinWidth="120"/>
-                        </StackPanel>
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- Phase 5 — nina.autopilot orchestrator connection -->
-                <GroupBox Header="🛰 Autopilot Connection (nina.autopilot)" Margin="0,0,0,10">
-                    <StackPanel Margin="5">
-                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,0,0,8">
-                            <Run Text="Connect this plugin to a running nina.autopilot orchestrator. When enabled, a status panel appears at the top of the AI Assistant chat showing current phase, target, LLM budget, recent events, and an E-STOP button."/><LineBreak/>
-                            <Run Text="The orchestrator runs separately (see github.com/michelebergo/nina.autopilot). Default URL points at the orchestrator's web dashboard on the same machine."/>
-                        </TextBlock>
-                        <CheckBox Content="Enable orchestrator status panel"
-                                  IsChecked="{Binding OrchestratorEnabled, UpdateSourceTrigger=PropertyChanged}"
-                                  HorizontalAlignment="Left"
-                                  Margin="0,0,0,8"/>
-                        <TextBlock Text="Dashboard URL:" Margin="0,0,0,3"/>
-                        <TextBox Text="{Binding OrchestratorUrl, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="350" HorizontalAlignment="Left"
-                                 ToolTip="The orchestrator dashboard URL (typically http://127.0.0.1:8765 on the same PC, or http://&lt;tailscale-ip&gt;:8765 over Tailscale)"/>
-                        <TextBlock Text="Poll interval (seconds):" Margin="0,8,0,3"/>
-                        <TextBox Text="{Binding OrchestratorPollIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="80" HorizontalAlignment="Left"
-                                 ToolTip="How often the panel refreshes from /api/status and /api/events. 5s is a good default; lower polls more aggressively."/>
-                        <TextBlock TextWrapping="Wrap" FontSize="10" Opacity="0.5" Margin="0,8,0,0">
-                            <Run Text="The panel POSTs to /api/estop when the E-STOP button is clicked. This will stop the running sequence, close the dome, park the mount, warm the camera, and end the session."/>
-                        </TextBlock>
-                    </StackPanel>
-                </GroupBox>
-
-                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" FontSize="11" Opacity="0.6">Tip: For beginners, start with GitHub Models (free) or Ollama (local). For best quality with equipment control, use Anthropic Claude with MCP enabled.</TextBlock>
-
-                <StackPanel Margin="0,16,0,0">
-                    <TextBlock
-                        Text="This plugin is developed and maintained independently by michelebergo."
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        Margin="0,4,0,0"
-                        Text="If you find it useful, you can support its continued development."
-                        TextWrapping="Wrap" />
-                    <Button
-                        Margin="0,12,0,0"
-                        Padding="12,6"
-                        HorizontalAlignment="Left"
-                        Command="{Binding OpenSupportPageCommand}"
-                        Content="☕ Support development" />
+                    <TextBlock x:Name="MistralTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Free tier and paid plans; the model list is fetched live with the key." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <TextBlock Text="Model:" Margin="0,10,0,2"/>
+                    <ComboBox x:Name="MistralModelComboBox" SelectedValue="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" HorizontalAlignment="Left" MinWidth="300" Loaded="MistralModel_Loaded" SelectionChanged="ModelCombo_SelectionChanged"/>
+                    <TextBlock Text="Or enter a model ID:" Margin="0,8,0,2" Foreground="{DynamicResource ButtonForegroundDisabledBrush}"/>
+                    <TextBox x:Name="MistralCustomModelBox" Text="{Binding MistralModelId, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" ToolTip="Any model ID, e.g. mistral-large-latest, codestral-latest"/>
                 </StackPanel>
+
+
+                <!-- ===== Equipment control ===== -->
+                <TextBlock Text="Equipment control" FontWeight="Bold" FontSize="14" Margin="0,24,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="Lets the assistant read and operate your equipment - status, connect, capture, slew, focus, filters, guiding - through the NINA Advanced API plugin, which must be installed and running." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+
+                <!-- Shown instead of the switch when the provider has no tool loop: hiding the
+                     whole section left the user wondering where it went. -->
+                <StackPanel Visibility="{Binding IsChatOnlyProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Not available with this provider: OpenAI and Mistral have no tool calling in this plugin yet, so the assistant can only answer questions. Choose Anthropic Claude, Google Gemini or Ollama above - or, for an agent that works your equipment with any provider and model, see the OpenCode for N.I.N.A. plugin." Foreground="Salmon" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <Button Content="OpenCode for N.I.N.A." Click="GetOpenCodePlugin_Click" Padding="10,2" HorizontalAlignment="Left"/>
+                </StackPanel>
+
+                <StackPanel Visibility="{Binding IsMCPProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <CheckBox Content="Enable equipment control (MCP)" IsChecked="{Binding MCPEnabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Advanced API host and port:" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBox Text="{Binding MCPNinaHost, UpdateSourceTrigger=PropertyChanged}" Width="200"/>
+                        <TextBox Text="{Binding MCPNinaPort, UpdateSourceTrigger=PropertyChanged}" Width="70" Margin="8,0,0,0"/>
+                        <Button Content="Test connection" Click="TestMCPConnection_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                    <TextBlock x:Name="MCPTestResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="With it on you can ask: 'Connect all equipment', 'Take a 30s exposure of M31', 'Cool the camera to -10°C', 'Start guiding'. Ollama needs a tool-capable model." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
+                        <Button Content="Get Advanced API plugin" Click="GetAdvancedAPIPlugin_Click" Padding="10,2"/>
+                        <Button Content="nina_mcp_server on GitHub" Click="GetMCPRepo_Click" Margin="8,0,0,0" Padding="10,2"/>
+                    </StackPanel>
+                </StackPanel>
+
+
+                <!-- ===== Your rig ===== -->
+                <TextBlock Text="Your rig" FontWeight="Bold" FontSize="14" Margin="0,24,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="A few lines from your active NINA profile travel with each message: site coordinates and elevation, telescope focal length and ratio, camera pixel size and the resulting arcsec/pixel, and where images and sequence templates are written. Without them the assistant answers questions about your own equipment from general knowledge - which is to say, it guesses. The exact text is written to the NINA log every time it changes, so you can always read what was sent." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                <CheckBox Content="Send a summary of my NINA profile to the assistant" IsChecked="{Binding SendProfileSummary, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,0,0,4"/>
+                <TextBlock Text="Turn this off if you would rather not send your observing coordinates and folder paths to a cloud provider. Ollama runs on your own machine, so nothing leaves it either way." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left"/>
+
+
+                <!-- ===== External MCP servers (advanced) ===== -->
+                <TextBlock Text="External MCP servers (advanced)" FontWeight="Bold" FontSize="14" Margin="0,24,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="Give the assistant more tools - web search, Wikipedia, your files - by connecting MCP servers in the standard mcpServers JSON used by Claude Desktop and VS Code. Each server can be python, node, npx, docker or any executable. Works with Anthropic Claude, Google Gemini and Ollama." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+
+                <TextBox x:Name="ExternalMCPServersBox"
+                         Text="{Binding ExternalMCPServersJson, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas" MinHeight="140" Width="520" HorizontalAlignment="Left"
+                         ToolTip="Standard mcpServers JSON. Add several servers under the mcpServers object; tool names that collide across servers are prefixed with the server name."/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,6,0,0">
+                    <Button Content="Validate" Click="ValidateExternalMCP_Click" Padding="10,2"/>
+                    <Button Content="Reset to default" Click="ResetExternalMCP_Click" Margin="8,0,0,0" Padding="10,2"/>
+                </StackPanel>
+                <TextBlock x:Name="ExternalMCPValidateResult" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
+                    <TextBlock Text="Add a ready-made server:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="UsefulServersCombo" MinWidth="220" SelectedIndex="0">
+                        <ComboBoxItem Content="Fetch (web pages)" Tag="fetch"/>
+                        <ComboBoxItem Content="DuckDuckGo Search (free)" Tag="ddg-search"/>
+                        <ComboBoxItem Content="Brave Search (API key)" Tag="brave-search"/>
+                        <ComboBoxItem Content="Context7 docs (API key)" Tag="context7"/>
+                        <ComboBoxItem Content="Memory" Tag="memory"/>
+                        <ComboBoxItem Content="Sequential Thinking" Tag="sequential-thinking"/>
+                        <ComboBoxItem Content="Wikipedia" Tag="wikipedia"/>
+                        <ComboBoxItem Content="arXiv papers" Tag="arxiv"/>
+                        <ComboBoxItem Content="Time" Tag="time"/>
+                        <ComboBoxItem Content="Filesystem (NINA logs)" Tag="filesystem"/>
+                        <ComboBoxItem Content="Everything (test server)" Tag="everything"/>
+                    </ComboBox>
+                    <Button Content="Add" Click="AddUsefulServer_Click" Margin="8,0,0,0" Padding="10,2"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,8,0,0">
+                    <Button Content="Documentation" Click="GetExternalMCPDocs_Click" Padding="10,2"/>
+                    <Button Content="Example server" Click="GetExternalMCPExample_Click" Margin="8,0,0,0" Padding="10,2"/>
+                </StackPanel>
+
+
+                <!-- ===== Autopilot (advanced) ===== -->
+                <TextBlock Text="Autopilot connection (advanced)" FontWeight="Bold" FontSize="14" Margin="0,24,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="If you run the separate nina.autopilot orchestrator, a status panel at the top of the chat shows its phase, target, LLM budget, recent events and an E-STOP button. The E-STOP stops the sequence, closes the dome, parks the mount, warms the camera and ends the session." Foreground="{DynamicResource ButtonForegroundDisabledBrush}" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                <CheckBox Content="Show the orchestrator status panel" IsChecked="{Binding OrchestratorEnabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                <TextBlock Text="Dashboard URL:" Margin="0,0,0,2"/>
+                <TextBox Text="{Binding OrchestratorUrl, UpdateSourceTrigger=PropertyChanged}" Width="360" HorizontalAlignment="Left" ToolTip="http://127.0.0.1:8765 on the same PC, or http://&lt;tailscale-ip&gt;:8765 over Tailscale"/>
+                <TextBlock Text="Poll interval (seconds):" Margin="0,8,0,2"/>
+                <TextBox Text="{Binding OrchestratorPollIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" ToolTip="How often the panel refreshes from /api/status and /api/events. 5 s is a good default."/>
+
+
+                <!-- ===== About ===== -->
+                <TextBlock Text="About AI Assistant" FontWeight="Bold" FontSize="14" Margin="0,24,0,2"/>
+                <Separator HorizontalAlignment="Left" Width="520" Margin="0,0,0,8"/>
+                <TextBlock Text="A chat panel in NINA's imaging tab that answers astrophotography questions and, with a capable provider, reads and operates your equipment. It consults a local knowledge wiki about your own rig before answering, shows what it is doing while it works, and tells you what the conversation has cost." TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                <TextBlock Text="This plugin is developed and maintained independently by michelebergo. If you find it useful, you can support its continued development." TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left"/>
+                <Button Margin="0,10,0,0" Padding="12,6" HorizontalAlignment="Left" Command="{Binding OpenSupportPageCommand}" Content="☕ Support development"/>
 
             </StackPanel>
         </ScrollViewer>

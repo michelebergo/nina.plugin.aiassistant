@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6.0] - 2026-10-30
+
+### Changed
+- **Chat-only providers say so** (fixes [#10](https://github.com/michelebergo/nina.plugin.aiassistant/issues/10)). OpenAI and Mistral have no tool calling in this plugin, yet with MCP ticked the chat's first message promised equipment control for them too, and a GPT-4o user learnt from the model itself that it "cannot access NINA". Which providers can drive NINA is now stated once (`ProviderCapabilities`) and read by the options page, the chat's prompt choice and the welcome message, instead of three hand-kept lists. The provider selector labels OpenAI and Mistral "chat only", the options page says it under the provider and in the Equipment control section, and the welcome message says it - and updates when the provider is changed while the panel is open. The README has a provider capability table to read before buying credits.
+- **Options page laid out the way it is set up**, like AI Weather's: provider, key and model first, then Equipment control, then Your rig, then the advanced sections (external MCP servers, Autopilot) and About. Equipment control stays visible with a chat-only provider and explains why it is unavailable, pointing at OpenCode for N.I.N.A., instead of disappearing. Section titles and the theme's colours for secondary text, so the page reads in light and dark themes. The six lines of marketing at the top are gone; they belong in the plugin description. GitHub Models (retired) is listed only for someone who still has it selected.
+- **Your rig**: a few lines from the active NINA profile travel with each message - site coordinates and elevation, focal length and ratio, pixel size and the resulting arcsec/pixel, image and sequence-template paths - so the assistant stops answering questions about your own equipment from general knowledge. On by default; the exact text is written to the NINA log whenever it changes; one switch turns it off for anyone who would rather not send coordinates to a cloud provider.
+- **`nina_show_profile` reads one section at a time** (`section=telescope`, `camera`, `astrometry`, `imaging`, ...) and defaults to the active profile. The whole settings tree of every profile was one answer and no conversation left for a small model, and the old description ("Show profile information") shared no word with any question a user asks, so among 150 tools it was never chosen.
+- **The Test buttons report what the provider said** instead of "Invalid API key: 429": the status code's real meaning (key rejected, not permitted, model not found, quota exceeded, provider down) followed by the provider's own message.
+
+### Added
+- Unit test project (`NINA.Plugin.AIAssistant.Test`, NUnit): 92 tests over the profile summary, the section filter, the error descriptions, the prompt composer, the provider capabilities, the welcome message and the status line.
+
 ## [2.5.5.0] - 2026-08-21
 
 ### Changed

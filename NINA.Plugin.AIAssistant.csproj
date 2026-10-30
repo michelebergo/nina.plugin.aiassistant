@@ -29,6 +29,16 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
+  <!-- This project sits at the repository root, so the SDK's default globs would compile the
+       test project's sources into the plugin itself. Exclude that folder explicitly. -->
+  <ItemGroup>
+    <Compile Remove="NINA.Plugin.AIAssistant.Test\**" />
+    <Page Remove="NINA.Plugin.AIAssistant.Test\**" />
+    <None Remove="NINA.Plugin.AIAssistant.Test\**" />
+    <EmbeddedResource Remove="NINA.Plugin.AIAssistant.Test\**" />
+    <ApplicationDefinition Remove="NINA.Plugin.AIAssistant.Test\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Resources\**\*" />
   </ItemGroup>
@@ -54,7 +64,10 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent" DependsOnTargets="PostBuildMacros">
+  <!-- Deploy into the live NINA plugin folder after a build. Skipped when the test project
+       pulls this one in (it passes SkipPluginDeploy=true): a test run must not require NINA
+       to be closed, and must not overwrite the installed plugin as a side effect. -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" DependsOnTargets="PostBuildMacros" Condition=" '$(SkipPluginDeploy)' != 'true' ">
     <Exec Command="xcopy &quot;$(TargetDir)*&quot; &quot;%25localappdata%25\NINA\Plugins\3.0.0\AI Assistant\&quot; /Y /S /I /E" />
   </Target>
 </Project>

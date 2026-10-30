@@ -93,6 +93,15 @@ namespace NINA.Plugin.AIAssistant.AI
         /// The string is a human-readable status (e.g. "🔧 Calling: nina_get_status (iteration 2)").
         /// </summary>
         public Action<string>? ProgressCallback { get; set; }
+
+        /// <summary>
+        /// A few lines describing the user's rig, read from the active NINA profile. It travels
+        /// separately from <see cref="SystemPrompt"/> because providers that support MCP build
+        /// their own system prompt internally and never see the one the chat composes: each of
+        /// them appends this through <see cref="SystemPromptComposer"/> instead.
+        /// Null when the user has turned the profile summary off, or when nothing is known.
+        /// </summary>
+        public string? ProfileContext { get; set; }
     }
 
     /// <summary>
@@ -204,11 +213,29 @@ namespace NINA.Plugin.AIAssistant.AI
             return provider switch
             {
                 AIProviderType.GitHub => "GitHub Models (Retired)",
-                AIProviderType.OpenAI => "OpenAI (Paid)",
+                AIProviderType.OpenAI => "OpenAI (Paid, chat only)",
                 AIProviderType.Anthropic => "Anthropic Claude (Paid)",
                 AIProviderType.Google => "Google Gemini (Free tier)",
                 AIProviderType.Ollama => "Ollama (Local/Free)",
-                AIProviderType.Mistral => "Mistral AI (Paid)",
+                AIProviderType.Mistral => "Mistral AI (Paid, chat only)",
+                _ => provider.ToString()
+            };
+        }
+
+        /// <summary>
+        /// The provider's name as a user would say it, without price or capability tags, for
+        /// use inside a sentence.
+        /// </summary>
+        public static string GetProviderShortName(AIProviderType provider)
+        {
+            return provider switch
+            {
+                AIProviderType.GitHub => "GitHub Models",
+                AIProviderType.OpenAI => "OpenAI",
+                AIProviderType.Anthropic => "Anthropic Claude",
+                AIProviderType.Google => "Google Gemini",
+                AIProviderType.Ollama => "Ollama",
+                AIProviderType.Mistral => "Mistral AI",
                 _ => provider.ToString()
             };
         }

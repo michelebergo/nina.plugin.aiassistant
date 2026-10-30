@@ -131,7 +131,7 @@ namespace NINA.Plugin.AIAssistant.AI
         {
             var endpoint = _config!.Endpoint ?? "http://localhost:11434";
             var modelId = _config.ModelId ?? "llama3.2";
-            var systemPrompt = request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.";
+            var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? "You are an expert astrophotography assistant for N.I.N.A. (Nighttime Imaging 'N' Astronomy). Only answer astrophotography and astronomy questions. Never fabricate equipment specs or N.I.N.A. features. If unsure, say so.", request.ProfileContext);
 
             var messages = new List<object>
             {
@@ -184,7 +184,7 @@ namespace NINA.Plugin.AIAssistant.AI
         {
             var endpoint = _config!.Endpoint ?? "http://localhost:11434";
             var modelId = _config.ModelId ?? "llama3.2";
-            var systemPrompt = request.SystemPrompt ?? GetMCPSystemPrompt();
+            var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
 
             // Merge tools from both built-in and external MCP sources
             var allTools = new List<MCPTool>();
@@ -498,6 +498,7 @@ Available tools include:
 - nina_connect_all_equipment: Connect all equipment at once (USE THIS when asked to 'connect all' instead of calling individual connect tools)
 - nina_disconnect_all_equipment: Disconnect all equipment at once (USE THIS when asked to 'disconnect all' instead of calling individual disconnect tools)
 - nina_get_status: Get equipment status (USE THIS when asked about equipment status)
+- nina_show_profile: The user's own site, telescope, camera and file paths (USE THIS instead of guessing focal length, focal ratio, pixel size, coordinates or where images are written; pass section= to read one part at a time). The profile is the authority on this user's equipment - your general knowledge is not.
 - nina_get_version: Get NINA version
 - nina_connect_camera, nina_disconnect_camera, nina_capture_image: Camera control
 - nina_connect_mount, nina_disconnect_mount, nina_slew_mount, nina_park_mount: Mount control
