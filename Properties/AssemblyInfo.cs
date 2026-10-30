@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 // General Information
 [assembly: AssemblyTitle("AI Assistant")]
-[assembly: AssemblyDescription("Multi-provider AI assistant with MCP equipment control for intelligent astrophotography automation")]
+[assembly: AssemblyDescription("Multi-provider AI assistant with MCP equipment control on every provider, a local knowledge wiki it consults before answering, image analysis, and an extensible tool framework for astrophotography automation")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Michele Bergo")]
 [assembly: AssemblyProduct("NINA.Plugins")]
@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.6.0")]
-[assembly: AssemblyFileVersion("2.5.6.0")]
+[assembly: AssemblyVersion("2.5.7.0")]
+[assembly: AssemblyFileVersion("2.5.7.0")]
 
 // Plugin metadata - aligned with NINA manifest standards
 [assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
@@ -36,7 +36,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Tags", "AI,Assistant,Chat,MCP,Automation,Image Analysis,Knowledge Wiki,Mistral,Ollama,Orchestrator")]
 
 // Short description (required by NINA plugin manager)
-[assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control, a local knowledge wiki it consults before answering, image analysis, and an extensible tool framework for astrophotography automation")]
+[assembly: AssemblyMetadata("ShortDescription", "Multi-provider AI assistant with MCP equipment control on every provider, a local knowledge wiki it consults before answering, image analysis, and an extensible tool framework for astrophotography automation")]
 
 // Long description
 [assembly: AssemblyMetadata("LongDescription", @"Your intelligent astrophotography companion - transform NINA into a conversational, context-aware imaging system that understands your goals and helps you achieve better results.
@@ -48,13 +48,13 @@ using System.Runtime.InteropServices;
 • Learning Assistant: Ask 'Why is my HFR high?' or 'Best Ha exposure for M42' - get expert guidance while imaging
 • Sequence Optimization: 'Plan 4-hour session on Horsehead' - AI suggests optimal filter rotation, dither patterns, exposure times
 
-🤖 5 AI PROVIDERS (Free to Advanced):
-• Ollama (Local) - Privacy-focused, works offline, no API costs, no key; equipment control with a tool-capable model
-• Google Gemini - Free API tier, fast responses, equipment control via MCP
-• Anthropic Claude - Best for equipment control via MCP
-• OpenAI GPT - Chat only: strong reasoning for planning and troubleshooting, no equipment control in this plugin yet
-• Mistral AI - Chat only: free API tier, European-hosted models, no equipment control in this plugin yet
-Dynamic model discovery ensures you always have latest AI capabilities. The provider selector, the options page and the chat's first message all say which kind you have picked, so nobody buys credits for a provider that cannot drive NINA.
+🤖 5 AI PROVIDERS (Free to Advanced), ALL WITH EQUIPMENT CONTROL:
+• Ollama (Local) - Privacy-focused, works offline, no API costs, no key; needs a tool-capable model
+• Google Gemini - Free API tier, fast responses
+• Anthropic Claude - Strongest at multi-step equipment control
+• OpenAI GPT - gpt-4o, gpt-4.1 and friends; the plugin reads each model's refusals and adapts the request (token parameter, temperature, reasoning effort) instead of carrying a rulebook that goes stale
+• Mistral AI - Free API tier, European-hosted models
+Dynamic model discovery ensures you always have latest AI capabilities.
 (GitHub Models stays in the list for anyone who had it selected, but GitHub retired the service on July 30, 2026: it refuses every request and says which providers still work. New installations open on Ollama, the one choice that needs no API key.)
 
 📚 KNOWLEDGE WIKI (SECOND BRAIN):

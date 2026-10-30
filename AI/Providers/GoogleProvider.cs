@@ -17,7 +17,7 @@ namespace NINA.Plugin.AIAssistant.AI
     /// <summary>
     /// Provider for Google Gemini API with MCP tool support
     /// </summary>
-    public class GoogleProvider : IAIProvider
+    public class GoogleProvider : IMCPCapableProvider
     {
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;

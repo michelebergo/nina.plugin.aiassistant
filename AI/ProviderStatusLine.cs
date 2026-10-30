@@ -8,14 +8,9 @@ namespace NINA.Plugin.AIAssistant.AI
     {
         public static string Describe(AIProviderType provider, bool mcpEnabled)
         {
-            if (provider == AIProviderType.GitHub)
+            if (!ProviderCapabilities.CanControlEquipment(provider))
             {
                 return "GitHub Models was retired by GitHub on 30 July 2026 - pick another provider.";
-            }
-
-            if (ProviderCapabilities.IsChatOnly(provider))
-            {
-                return "Chat only - answers questions, cannot read or control NINA equipment (no tool calling in this plugin yet).";
             }
 
             return mcpEnabled

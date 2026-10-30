@@ -507,91 +507,31 @@ namespace NINA.Plugin.AIAssistant
             // Initialize external MCP server if configured
             await InitializeExternalMCPAsync(plugin);
             
-            // Enable MCP for Anthropic and Google providers
-            if (_aiService?.ActiveProviderType == AIProviderType.Anthropic)
+            // Any provider with a tool loop, by interface: no per-class casting, so a provider
+            // that gains tools needs no change here.
+            if (_aiService?.GetActiveProvider() is IMCPCapableProvider provider)
             {
-                var provider = _aiService.GetActiveProvider() as AnthropicProvider;
-                if (provider != null)
+                var mcpConfig = plugin.GetMCPConfig();
+                var name = AvailableModels.GetProviderShortName(provider.ProviderType);
+                Logger.Info($"AIChatVM: Initializing MCP for {name} - Host: {mcpConfig.NinaHost}, Port: {mcpConfig.NinaPort}, Enabled: {mcpConfig.Enabled}");
+
+                var success = await provider.EnableMCPAsync(mcpConfig);
+                _mcpInitialized = success;
+
+                if (success)
                 {
-                    var mcpConfig = plugin.GetMCPConfig();
-                    Logger.Info($"AIChatVM: Initializing MCP for Anthropic - Host: {mcpConfig.NinaHost}, Port: {mcpConfig.NinaPort}, Enabled: {mcpConfig.Enabled}");
-                    
-                    var success = await provider.EnableMCPAsync(mcpConfig);
-                    _mcpInitialized = success;
-                    
-                    if (success)
-                    {
-                        Logger.Info("AIChatVM: MCP initialized successfully for Anthropic provider");
-                        StatusMessage = "🤖 MCP Connected (Claude)";
-                    }
-                    else
-                    {
-                        Logger.Warning("AIChatVM: MCP initialization failed - check NINA Advanced API connection");
-                        StatusMessage = "⚠️ MCP connection failed";
-                    }
+                    Logger.Info($"AIChatVM: MCP initialized successfully for {name}");
+                    StatusMessage = $"🤖 MCP Connected ({name})";
                 }
                 else
                 {
-                    Logger.Warning("AIChatVM: Could not cast active provider to AnthropicProvider");
-                }
-            }
-            else if (_aiService?.ActiveProviderType == AIProviderType.Google)
-            {
-                var provider = _aiService.GetActiveProvider() as GoogleProvider;
-                if (provider != null)
-                {
-                    var mcpConfig = plugin.GetMCPConfig();
-                    Logger.Info($"AIChatVM: Initializing MCP for Google Gemini - Host: {mcpConfig.NinaHost}, Port: {mcpConfig.NinaPort}, Enabled: {mcpConfig.Enabled}");
-                    
-                    var success = await provider.EnableMCPAsync(mcpConfig);
-                    _mcpInitialized = success;
-                    
-                    if (success)
-                    {
-                        Logger.Info("AIChatVM: MCP initialized successfully for Google provider");
-                        StatusMessage = "🤖 MCP Connected (Gemini)";
-                    }
-                    else
-                    {
-                        Logger.Warning("AIChatVM: MCP initialization failed - check NINA Advanced API connection");
-                        StatusMessage = "⚠️ MCP connection failed";
-                    }
-                }
-                else
-                {
-                    Logger.Warning("AIChatVM: Could not cast active provider to GoogleProvider");
-                }
-            }
-            else if (_aiService?.ActiveProviderType == AIProviderType.Ollama)
-            {
-                var provider = _aiService.GetActiveProvider() as OllamaProvider;
-                if (provider != null)
-                {
-                    var mcpConfig = plugin.GetMCPConfig();
-                    Logger.Info($"AIChatVM: Initializing MCP for Ollama - Host: {mcpConfig.NinaHost}, Port: {mcpConfig.NinaPort}, Enabled: {mcpConfig.Enabled}");
-                    
-                    var success = await provider.EnableMCPAsync(mcpConfig);
-                    _mcpInitialized = success;
-                    
-                    if (success)
-                    {
-                        Logger.Info("AIChatVM: MCP initialized successfully for Ollama provider");
-                        StatusMessage = "🤖 MCP Connected (Ollama)";
-                    }
-                    else
-                    {
-                        Logger.Warning("AIChatVM: MCP initialization failed - check NINA Advanced API connection");
-                        StatusMessage = "⚠️ MCP connection failed";
-                    }
-                }
-                else
-                {
-                    Logger.Warning("AIChatVM: Could not cast active provider to OllamaProvider");
+                    Logger.Warning("AIChatVM: MCP initialization failed - check NINA Advanced API connection");
+                    StatusMessage = "⚠️ MCP connection failed";
                 }
             }
             else
             {
-                Logger.Info($"AIChatVM: MCP not supported for provider {_aiService?.ActiveProviderType}, only Anthropic, Google, and Ollama");
+                Logger.Info($"AIChatVM: MCP not supported for provider {_aiService?.ActiveProviderType}");
             }
         }
 
@@ -632,21 +572,10 @@ namespace NINA.Plugin.AIAssistant
                     _externalMcpManager = manager;
                     Logger.Info($"AIChatVM: External MCP started: {manager.ConnectedCount} server(s) - {manager.ServerName}");
 
-                    // Pass to active provider
-                    if (_aiService?.ActiveProviderType == AIProviderType.Anthropic)
+                    // Pass to the active provider, whichever one has a tool loop
+                    if (_aiService?.GetActiveProvider() is IMCPCapableProvider provider)
                     {
-                        var provider = _aiService.GetActiveProvider() as AnthropicProvider;
-                        provider?.SetExternalMCP(manager);
-                    }
-                    else if (_aiService?.ActiveProviderType == AIProviderType.Google)
-                    {
-                        var provider = _aiService.GetActiveProvider() as GoogleProvider;
-                        provider?.SetExternalMCP(manager);
-                    }
-                    else if (_aiService?.ActiveProviderType == AIProviderType.Ollama)
-                    {
-                        var provider = _aiService.GetActiveProvider() as OllamaProvider;
-                        provider?.SetExternalMCP(manager);
+                        provider.SetExternalMCP(manager);
                     }
                 }
                 else

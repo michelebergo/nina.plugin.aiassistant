@@ -10,25 +10,12 @@ namespace NINA.Plugin.AIAssistant.AI
     {
         /// <summary>
         /// True when the provider has a tool loop in this plugin: it receives the NINA tool
-        /// definitions, acts on tool calls and sees their results. Without it, asking about
-        /// the equipment gets a plain-text "I cannot access NINA" from the model.
+        /// definitions, acts on tool calls and sees their results. Every working provider has
+        /// one since 2.5.7.0; the retired GitHub Models cannot answer at all.
         /// </summary>
         public static bool CanControlEquipment(AIProviderType provider)
         {
-            return provider == AIProviderType.Anthropic
-                || provider == AIProviderType.Google
-                || provider == AIProviderType.Ollama;
-        }
-
-        /// <summary>
-        /// A provider that answers questions but cannot drive NINA. The retired GitHub Models
-        /// is deliberately not one of these: it cannot chat either, and its own provider
-        /// explains why.
-        /// </summary>
-        public static bool IsChatOnly(AIProviderType provider)
-        {
-            return provider == AIProviderType.OpenAI
-                || provider == AIProviderType.Mistral;
+            return provider != AIProviderType.GitHub;
         }
     }
 }

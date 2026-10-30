@@ -16,35 +16,15 @@ namespace NINA.Plugin.AIAssistant.Test {
         [TestCase(AIProviderType.Anthropic)]
         [TestCase(AIProviderType.Google)]
         [TestCase(AIProviderType.Ollama)]
-        public void ProvidersWithAToolLoop_CanControlEquipment(AIProviderType provider) {
+        [TestCase(AIProviderType.OpenAI)]
+        [TestCase(AIProviderType.Mistral)]
+        public void EveryWorkingProvider_CanControlEquipment(AIProviderType provider) {
             ProviderCapabilities.CanControlEquipment(provider).Should().BeTrue();
         }
 
-        [TestCase(AIProviderType.OpenAI)]
-        [TestCase(AIProviderType.Mistral)]
-        [TestCase(AIProviderType.GitHub)]
-        public void ProvidersWithoutAToolLoop_CannotControlEquipment(AIProviderType provider) {
-            ProviderCapabilities.CanControlEquipment(provider).Should().BeFalse();
-        }
-
-        [TestCase(AIProviderType.OpenAI)]
-        [TestCase(AIProviderType.Mistral)]
-        public void WorkingProvidersWithoutTools_AreChatOnly(AIProviderType provider) {
-            ProviderCapabilities.IsChatOnly(provider).Should().BeTrue();
-        }
-
         [Test]
-        public void RetiredProvider_IsNotCalledChatOnly() {
-            // GitHub Models cannot chat either: calling it "chat only" would promise more than
-            // it delivers. Its own provider explains the retirement.
-            ProviderCapabilities.IsChatOnly(AIProviderType.GitHub).Should().BeFalse();
-        }
-
-        [TestCase(AIProviderType.Anthropic)]
-        [TestCase(AIProviderType.Google)]
-        [TestCase(AIProviderType.Ollama)]
-        public void ToolCapableProviders_AreNotChatOnly(AIProviderType provider) {
-            ProviderCapabilities.IsChatOnly(provider).Should().BeFalse();
+        public void RetiredProvider_CannotControlEquipment() {
+            ProviderCapabilities.CanControlEquipment(AIProviderType.GitHub).Should().BeFalse();
         }
     }
 }

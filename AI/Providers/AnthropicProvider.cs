@@ -16,7 +16,7 @@ namespace NINA.Plugin.AIAssistant.AI
     /// <summary>
     /// Provider for Anthropic Claude API with MCP tool support
     /// </summary>
-    public class AnthropicProvider : IAIProvider
+    public class AnthropicProvider : IMCPCapableProvider
     {
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;

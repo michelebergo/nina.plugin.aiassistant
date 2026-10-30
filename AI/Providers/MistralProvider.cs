@@ -9,22 +9,60 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NINA.Core.Utility;
+using NINA.Plugin.AIAssistant.AI.MCP;
+using NINA.Plugin.AIAssistant.MCP;
 
 namespace NINA.Plugin.AIAssistant.AI
 {
     /// <summary>
-    /// Provider for Mistral AI API (OpenAI-compatible)
+    /// Provider for Mistral AI API (OpenAI-compatible) with MCP tool support
     /// </summary>
-    public class MistralProvider : IAIProvider
+    public class MistralProvider : IMCPCapableProvider
     {
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;
+        private NINAAdvancedAPIClient? _mcpClient;
+        private IExternalMCPSource? _externalMcpClient;
+        private bool _mcpEnabled;
         private const string BaseUrl = "https://api.mistral.ai/v1";
+        private const int MaxToolIterations = 10;
 
         public AIProviderType ProviderType => AIProviderType.Mistral;
-        public string DisplayName => "Mistral AI";
+        public string DisplayName => "Mistral AI (MCP Enabled)";
         public bool IsConfigured => _httpClient != null && _config != null;
-        public bool IsMCPEnabled => false;
+        public bool IsMCPEnabled => _mcpEnabled && (_mcpClient?.IsConnected == true || _externalMcpClient?.IsConnected == true);
+
+        public async Task<bool> EnableMCPAsync(MCPConfig mcpConfig, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _mcpClient = new NINAAdvancedAPIClient();
+                var connected = await _mcpClient.InitializeAsync(mcpConfig, cancellationToken);
+                _mcpEnabled = connected && mcpConfig.Enabled;
+
+                if (_mcpEnabled)
+                {
+                    Logger.Info($"MCP enabled for Mistral - Connected to NINA Advanced API at {mcpConfig.NinaHost}:{mcpConfig.NinaPort}");
+                }
+                else if (mcpConfig.Enabled)
+                {
+                    Logger.Warning("MCP enabled but could not connect to NINA Advanced API");
+                }
+                return _mcpEnabled;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to enable MCP for Mistral: {ex.Message}");
+                _mcpEnabled = false;
+                return false;
+            }
+        }
+
+        public void SetExternalMCP(IExternalMCPSource externalMcpClient)
+        {
+            _externalMcpClient = externalMcpClient;
+            Logger.Info($"External MCP source set for Mistral: {_externalMcpClient.ServerName}");
+        }
 
         public void UpdateModel(string? modelId)
         {
@@ -62,6 +100,12 @@ namespace NINA.Plugin.AIAssistant.AI
 
             try
             {
+                if (_mcpEnabled && _mcpClient != null)
+                {
+                    Logger.Info("MistralProvider: Using MCP tool-calling flow");
+                    return await SendRequestWithToolsAsync(request, cancellationToken);
+                }
+
                 var messages = new List<object>
                 {
                     new
@@ -106,6 +150,61 @@ namespace NINA.Plugin.AIAssistant.AI
                 Logger.Error($"Mistral request failed: {ex.Message}");
                 return new AIResponse { Success = false, Error = ex.Message };
             }
+        }
+
+        private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
+        {
+            var modelId = _config!.ModelId ?? "mistral-large-latest";
+            var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? MCPSystemPrompts.Default, request.ProfileContext);
+
+            var allTools = await MCPToolSources.CollectAsync(_mcpClient, _externalMcpClient, "MistralProvider", cancellationToken);
+            var tools = ChatCompletionsTools.BuildTools(allTools);
+            Logger.Info($"MistralProvider: Sending request with {allTools.Count} total MCP tools available");
+
+            var messages = new List<object> { new { role = "system", content = systemPrompt } };
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    messages.Add(new { role = turn.Role, content = turn.Content });
+            }
+            messages.Add(new { role = "user", content = request.Prompt });
+
+            var loop = new ChatCompletionsToolLoop(
+                post: async (current, ct) =>
+                {
+                    var body = new Dictionary<string, object>
+                    {
+                        ["model"] = modelId,
+                        ["messages"] = current,
+                        ["tools"] = tools,
+                        ["tool_choice"] = "auto",
+                        ["temperature"] = request.Temperature,
+                        ["max_tokens"] = request.MaxTokens
+                    };
+                    var json = JsonConvert.SerializeObject(body);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var response = await _httpClient!.PostAsync($"{BaseUrl}/chat/completions", content, ct);
+                    return (response.StatusCode, await response.Content.ReadAsStringAsync(ct));
+                },
+                invoke: (name, args, ct) => MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, name, args, ct),
+                progress: request.ProgressCallback,
+                // Mistral's tool message carries the function name; OpenAI's does not.
+                includeToolNameInResult: true,
+                maxIterations: MaxToolIterations);
+
+            var outcome = await loop.RunAsync(messages, cancellationToken);
+            if (!outcome.Succeeded)
+            {
+                return new AIResponse { Success = false, Error = outcome.Error };
+            }
+
+            var aiResponse = ParseResponse(outcome.FinalResponse!.ToString(), modelId);
+            if (outcome.ToolResults.Count > 0)
+            {
+                aiResponse.Metadata!["tool_results"] = outcome.ToolResults;
+                aiResponse.Metadata["mcp_enabled"] = true;
+            }
+            return aiResponse;
         }
 
         private AIResponse ParseResponse(string responseContent, string modelId)

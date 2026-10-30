@@ -213,11 +213,11 @@ namespace NINA.Plugin.AIAssistant.AI
             return provider switch
             {
                 AIProviderType.GitHub => "GitHub Models (Retired)",
-                AIProviderType.OpenAI => "OpenAI (Paid, chat only)",
+                AIProviderType.OpenAI => "OpenAI (Paid)",
                 AIProviderType.Anthropic => "Anthropic Claude (Paid)",
                 AIProviderType.Google => "Google Gemini (Free tier)",
                 AIProviderType.Ollama => "Ollama (Local/Free)",
-                AIProviderType.Mistral => "Mistral AI (Paid, chat only)",
+                AIProviderType.Mistral => "Mistral AI (Free tier / Paid)",
                 _ => provider.ToString()
             };
         }

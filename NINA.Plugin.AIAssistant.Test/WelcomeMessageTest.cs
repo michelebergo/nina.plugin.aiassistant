@@ -5,10 +5,8 @@ using NUnit.Framework;
 namespace NINA.Plugin.AIAssistant.Test {
 
     /// <summary>
-    /// The first thing the panel says is the one place a user reads before typing. With MCP
-    /// switched on it used to promise equipment control for every provider, including the two
-    /// that have no tool loop - so the promise was false exactly for the users who most needed
-    /// to know (issue #10).
+    /// The first thing the panel says is the one place a user reads before typing. It must
+    /// promise equipment control only when the provider can deliver it and MCP is on.
     /// </summary>
     [TestFixture]
     public class WelcomeMessageTest {
@@ -16,50 +14,22 @@ namespace NINA.Plugin.AIAssistant.Test {
         [TestCase(AIProviderType.Anthropic)]
         [TestCase(AIProviderType.Google)]
         [TestCase(AIProviderType.Ollama)]
-        public void ToolCapableProvider_WithMcpOn_PromisesEquipmentControl(AIProviderType provider) {
-            var text = WelcomeMessage.Build(provider, mcpEnabled: true);
-
-            text.Should().Contain("MCP Control Enabled");
-            text.Should().NotContain("Chat only");
+        [TestCase(AIProviderType.OpenAI)]
+        [TestCase(AIProviderType.Mistral)]
+        public void WorkingProvider_WithMcpOn_PromisesEquipmentControl(AIProviderType provider) {
+            WelcomeMessage.Build(provider, mcpEnabled: true).Should().Contain("MCP Control Enabled");
         }
 
         [TestCase(AIProviderType.Anthropic)]
-        [TestCase(AIProviderType.Google)]
-        [TestCase(AIProviderType.Ollama)]
-        public void ToolCapableProvider_WithMcpOff_PromisesNothingAboutEquipment(AIProviderType provider) {
-            var text = WelcomeMessage.Build(provider, mcpEnabled: false);
-
-            text.Should().NotContain("MCP Control Enabled");
-            text.Should().NotContain("Chat only");
-        }
-
-        [TestCase(AIProviderType.OpenAI, "OpenAI")]
-        [TestCase(AIProviderType.Mistral, "Mistral")]
-        public void ChatOnlyProvider_WithMcpOn_SaysChatOnlyInsteadOfPromisingControl(AIProviderType provider, string name) {
-            // The user left MCP on from a previous provider, or ticked it hoping it would work.
-            var text = WelcomeMessage.Build(provider, mcpEnabled: true);
-
-            text.Should().NotContain("MCP Control Enabled");
-            text.Should().Contain("Chat only");
-            text.Should().Contain(name);
-            // Names the way out, so the message is a direction and not just a refusal.
-            text.Should().Contain("Anthropic Claude").And.Contain("Google Gemini").And.Contain("Ollama");
-        }
-
         [TestCase(AIProviderType.OpenAI)]
         [TestCase(AIProviderType.Mistral)]
-        public void ChatOnlyProvider_WithMcpOff_StillSaysChatOnly(AIProviderType provider) {
-            // Whether the user ticked MCP is irrelevant: the provider cannot drive NINA either way,
-            // and the point of the line is to say so before any credit is spent.
-            WelcomeMessage.Build(provider, mcpEnabled: false).Should().Contain("Chat only");
+        public void WorkingProvider_WithMcpOff_PromisesNothingAboutEquipment(AIProviderType provider) {
+            WelcomeMessage.Build(provider, mcpEnabled: false).Should().NotContain("MCP Control Enabled");
         }
 
         [Test]
-        public void RetiredProvider_GetsNeitherPromiseNorChatOnlyLine() {
-            var text = WelcomeMessage.Build(AIProviderType.GitHub, mcpEnabled: true);
-
-            text.Should().NotContain("MCP Control Enabled");
-            text.Should().NotContain("Chat only");
+        public void RetiredProvider_GetsNoPromiseEvenWithMcpOn() {
+            WelcomeMessage.Build(AIProviderType.GitHub, mcpEnabled: true).Should().NotContain("MCP Control Enabled");
         }
 
         [Test]

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.7.0] - 2026-10-30
+
+### Added
+- **Equipment control with OpenAI and Mistral** (closes [#10](https://github.com/michelebergo/nina.plugin.aiassistant/issues/10)). Both speak the same `/chat/completions` tool-calling dialect, so they share one loop (`ChatCompletionsToolLoop`): the model asks for tools, the plugin runs them against NINA, hands the results back with the id of the call they answer, and repeats until the model answers in words - same activity trace, cancellation and iteration cap as Claude, Gemini and Ollama. The loop owns no HTTP client and no NINA connection, so it runs under test with scripted responses. Verified live: a read-only "what is my equipment status?" with gpt-4.1 called `nina_get_status` and reported the disconnected devices without touching anything. Mistral's variant (tool results carry the function name) is covered by the same tests.
+- **`IMCPCapableProvider`**: the chat no longer casts to each provider class to switch MCP on; a provider that gains tools only implements the interface. `MCPToolSources` merges built-in and external tools with the rules Ollama has applied since 2.4.1.
+
+### Changed
+- **OpenAI's 128-tool limit** is met by leaving out the least conversational tools first - rescans, device listings, one-by-one disconnects, readout variants, park positions, rotator mechanics, dome details, trained flats, framing setters, filter-list editing, UI pages, duplicates, sequence JSON - in that order, only as far as needed. Tools the system prompt names, the wiki tools and external servers are never dropped. A test checks that the shipped catalogue fits without reaching the last-resort tail cut; the NINA log lists exactly what was left out on each request.
+- **OpenAI request negotiation**: the plugin cannot know the parameter rules of a model released after it shipped, so it reads the 400 the model sends back and repairs the one parameter it names (`max_tokens` → `max_completion_tokens`, drop `temperature`, add or drop `reasoning_effort`), applies each repair once, and remembers what worked for the rest of the session (reset when the model changes). A model that demands `reasoning_effort: none` for tools and then rejects `none` - gpt-6-astra today - calls tools only through OpenAI's Responses API, which this plugin does not use yet; the user gets a sentence saying so and which models to pick instead of the raw JSON.
+- **External tool schemas**: a parameter declared with a list of types (`["boolean","string"]`, as the sequential-thinking server does) or no type at all is sent as one JSON Schema type word. The same conversion in the Ollama provider still has the old behaviour; Ollama tolerates it.
+- The "chat only" labels of 2.5.6.0 are gone with the limitation. `ProviderCapabilities` now says only that the retired GitHub Models cannot control equipment.
+- `AssemblyDescription` - the short line in the plugin list - finally mentions the Knowledge Wiki and equipment control on every provider; it had been left at its 2.5.2 wording.
+
 ## [2.5.6.0] - 2026-10-30
 
 ### Changed

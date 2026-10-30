@@ -67,7 +67,6 @@ namespace NINA.Plugin.AIAssistant
                     RaisePropertyChanged(nameof(IsOllamaSelected));
                     RaisePropertyChanged(nameof(IsMistralSelected));
                     RaisePropertyChanged(nameof(IsMCPProviderSelected));
-                    RaisePropertyChanged(nameof(IsChatOnlyProviderSelected));
                 }
             }
         }
@@ -79,7 +78,6 @@ namespace NINA.Plugin.AIAssistant
         public bool IsOllamaSelected => SelectedProviderInternal == AIProviderType.Ollama;
         public bool IsMistralSelected => SelectedProviderInternal == AIProviderType.Mistral;
         public bool IsMCPProviderSelected => AI.ProviderCapabilities.CanControlEquipment(SelectedProviderInternal);
-        public bool IsChatOnlyProviderSelected => AI.ProviderCapabilities.IsChatOnly(SelectedProviderInternal);
 
         [ImportingConstructor]
         public AIAssistantPlugin(IProfileService profileService, 

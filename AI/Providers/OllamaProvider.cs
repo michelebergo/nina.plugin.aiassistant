@@ -17,7 +17,7 @@ namespace NINA.Plugin.AIAssistant.AI
     /// <summary>
     /// Provider for Ollama (local models, completely free) with MCP tool support
     /// </summary>
-    public class OllamaProvider : IAIProvider
+    public class OllamaProvider : IMCPCapableProvider
     {
         private HttpClient? _httpClient;
         private AIProviderConfig? _config;
