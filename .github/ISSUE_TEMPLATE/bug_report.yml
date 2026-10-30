@@ -1,0 +1,50 @@
+name: Bug report
+description: Something the plugin did wrong on your rig
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin version and N.I.N.A. version (both are in Options > Plugins).
+      placeholder: AI Assistant 2.5.5.0, N.I.N.A. 3.2.1
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      description: Provider and model, MCP on or off, N.I.N.A. Advanced API version, external MCP servers if any.
+      placeholder: Ollama qwen2.5vl with MCP on, Advanced API 2.2.15
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked, what the assistant answered or did, and what you expected. The N.I.N.A. log lines around that moment are the most useful thing you can attach.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: dropdown
+    id: ai
+    attributes:
+      label: AI assistance
+      description: Did an AI tool (ChatGPT, Claude, Gemini, Copilot or similar) help you write this report or analyse the logs behind it? There is nothing wrong with that; knowing it tells me how to read the report.
+      options:
+        - "No"
+        - "Yes, it helped write the report"
+        - "Yes, it analysed the logs"
+        - "Yes, both"
+    validations:
+      required: true
+  - type: input
+    id: ai_detail
+    attributes:
+      label: If yes, which tool and what did it do?
+      placeholder: ChatGPT read the N.I.N.A. log and drafted the timeline; I checked it against what I saw
