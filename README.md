@@ -52,11 +52,11 @@ Check this before buying credits.
 | Ollama | free, runs on your machine | ✅ | ✅ with a tool-capable model (llama3.1+, qwen2.5, …) | ✅ | nothing leaves your PC |
 | Google Gemini | free tier | ✅ | ✅ | ✅ | |
 | Anthropic Claude | paid | ✅ | ✅ | ✅ | |
-| OpenAI | paid | ✅ | ✅ (since 2.5.7.0) | ✅ | reasoning models (o1, o3…) may refuse tools |
+| OpenAI | paid | ✅ | ✅ (since 2.5.7.0) | ✅ | newest reasoning models (gpt-6-astra…) are moved to the Responses API automatically |
 | Mistral AI | free tier / paid | ✅ | ✅ (since 2.5.7.0) | ✅ | |
 | GitHub Models | — | ❌ retired by GitHub on 30 July 2026 | ❌ | ❌ | listed only if you still have it selected |
 
-"Equipment control" means the assistant receives the NINA tool definitions, calls them (status, connect, capture, slew, …) and sees the results, in as many rounds as the task needs. OpenAI and Mistral speak the same `/chat/completions` tool-calling dialect, so they share one loop; Anthropic, Gemini and Ollama each have their own.
+"Equipment control" means the assistant receives the NINA tool definitions, calls them (status, connect, capture, slew, …) and sees the results, in as many rounds as the task needs. OpenAI and Mistral speak the same `/chat/completions` tool-calling dialect, so they share one loop; the newest OpenAI models, which call tools only through the Responses API, are moved there automatically the first time they say so. Anthropic, Gemini and Ollama each have their own loop. OpenAI accepts at most 128 tools per request: the least conversational ones (rescans, device listings, one-by-one disconnects, …) are left out first, and the NINA log lists what was dropped.
 
 If you want an agent with its own permissions, workspace and session memory that works your equipment with any provider, see [OpenCode for N.I.N.A.](https://github.com/michelebergo/nina.plugin.opencode): it drives the opencode agent with NINA's tools via `nina_mcp_server`, and is the plugin meant for the more advanced, agentic use.
 

@@ -157,8 +157,37 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 Logger.Info($"OpenAIProvider: {allTools.Count} tools available, {dropped.Count} left out to fit OpenAI's limit of {MaxTools}: {string.Join(", ", dropped)}");
             }
-            var tools = ChatCompletionsTools.BuildTools(fitted);
             Logger.Info($"OpenAIProvider: Sending request with {fitted.Count} MCP tools");
+
+            if (_responsesApiModels.Contains(modelId))
+            {
+                return await RunResponsesLoopAsync(request, modelId, systemPrompt, fitted, cancellationToken);
+            }
+
+            var outcome = await RunChatCompletionsLoopAsync(request, modelId, systemPrompt, fitted, cancellationToken);
+
+            // The model has said, in its own words, that tools go through the other endpoint.
+            // Switch for this model and stay switched; the refusal arrives before any tool has
+            // run, so nothing is lost by starting the turn again.
+            if (!outcome.Response.Success && outcome.Response.Error != null
+                && (OpenAIRequestNegotiation.SuggestsResponsesApi(outcome.Response.Error) || outcome.Response.Error.Contains("Responses API"))
+                && outcome.Iterations <= 1)
+            {
+                Logger.Info($"OpenAIProvider: '{modelId}' calls tools only through the Responses API - switching for this model");
+                _responsesApiModels.Add(modelId);
+                return await RunResponsesLoopAsync(request, modelId, systemPrompt, fitted, cancellationToken);
+            }
+
+            return outcome.Response;
+        }
+
+        // Models that refused tools on /chat/completions and were moved to /v1/responses.
+        private readonly HashSet<string> _responsesApiModels = new(StringComparer.Ordinal);
+
+        private async Task<(AIResponse Response, int Iterations)> RunChatCompletionsLoopAsync(
+            AIRequest request, string modelId, string systemPrompt, List<MCPTool> fitted, CancellationToken cancellationToken)
+        {
+            var tools = ChatCompletionsTools.BuildTools(fitted);
 
             var messages = new List<object> { new { role = "system", content = systemPrompt } };
             if (request.History != null)
@@ -197,7 +226,7 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 var errorResp = new AIResponse { Success = false, Error = outcome.Error, Metadata = new Dictionary<string, object>() };
                 if (lastHeaders != null) CaptureRateLimits(lastHeaders, errorResp.Metadata);
-                return errorResp;
+                return (errorResp, outcome.Iterations);
             }
 
             var aiResponse = ParseResponse(outcome.FinalResponse!, modelId);
@@ -207,7 +236,87 @@ namespace NINA.Plugin.AIAssistant.AI
                 aiResponse.Metadata["mcp_enabled"] = true;
             }
             if (lastHeaders != null) CaptureRateLimits(lastHeaders, aiResponse.Metadata!);
-            return aiResponse;
+            return (aiResponse, outcome.Iterations);
+        }
+
+        /// <summary>
+        /// The same loop over /v1/responses: the system prompt travels as "instructions", the
+        /// conversation as "input" items, and every output item (reasoning included) is
+        /// replayed before the function_call_output items. No temperature is sent - the models
+        /// that live here are reasoning models and refuse one.
+        /// </summary>
+        private async Task<AIResponse> RunResponsesLoopAsync(
+            AIRequest request, string modelId, string systemPrompt, List<MCPTool> fitted, CancellationToken cancellationToken)
+        {
+            var tools = ResponsesApiTools.BuildTools(fitted);
+
+            var items = new List<object>();
+            if (request.History != null)
+            {
+                foreach (var turn in request.History)
+                    items.Add(new { role = turn.Role, content = turn.Content });
+            }
+            items.Add(new { role = "user", content = request.Prompt });
+
+            HttpResponseHeaders? lastHeaders = null;
+
+            var loop = new ToolLoop(
+                new ResponsesApiDialect(),
+                post: async (current, ct) =>
+                {
+                    var body = new Dictionary<string, object>
+                    {
+                        ["model"] = modelId,
+                        ["instructions"] = systemPrompt,
+                        ["input"] = current,
+                        ["tools"] = tools,
+                        ["tool_choice"] = "auto",
+                        ["max_output_tokens"] = request.MaxTokens
+                    };
+                    var json = JsonConvert.SerializeObject(body);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var response = await _httpClient!.PostAsync($"{BaseUrl}/responses", content, ct);
+                    lastHeaders = response.Headers;
+                    return (response.StatusCode, await response.Content.ReadAsStringAsync(ct));
+                },
+                invoke: (name, args, ct) => MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, name, args, ct),
+                progress: request.ProgressCallback,
+                maxIterations: MaxToolIterations);
+
+            var outcome = await loop.RunAsync(items, cancellationToken);
+
+            if (!outcome.Succeeded)
+            {
+                var errorResp = new AIResponse { Success = false, Error = outcome.Error, Metadata = new Dictionary<string, object>() };
+                if (lastHeaders != null) CaptureRateLimits(lastHeaders, errorResp.Metadata);
+                return errorResp;
+            }
+
+            var final = outcome.FinalResponse!;
+            var usage = final["usage"];
+            var metadata = new Dictionary<string, object> { ["provider"] = "OpenAI", ["api"] = "responses" };
+            var inTok = usage?["input_tokens"]?.Value<int>();
+            var outTok = usage?["output_tokens"]?.Value<int>();
+            if (inTok.HasValue && outTok.HasValue)
+            {
+                metadata["input_tokens"] = inTok.Value;
+                metadata["output_tokens"] = outTok.Value;
+            }
+            if (outcome.ToolResults.Count > 0)
+            {
+                metadata["tool_results"] = outcome.ToolResults;
+                metadata["mcp_enabled"] = true;
+            }
+            if (lastHeaders != null) CaptureRateLimits(lastHeaders, metadata);
+
+            return new AIResponse
+            {
+                Success = true,
+                Content = ResponsesApiTools.Text(final),
+                ModelUsed = final["model"]?.ToString() ?? modelId,
+                TokensUsed = usage?["total_tokens"]?.Value<int>(),
+                Metadata = metadata
+            };
         }
 
         /// <summary>
@@ -262,6 +371,10 @@ namespace NINA.Plugin.AIAssistant.AI
 
             for (int attempt = 0; attempt < 3 && (int)response.StatusCode == 400; attempt++)
             {
+                // Not a parameter to repair: the model wants the other endpoint. Hand the
+                // refusal back unchanged so the caller can switch.
+                if (OpenAIRequestNegotiation.SuggestsResponsesApi(responseContent)) break;
+
                 var before = new Dictionary<string, object>(requestBody);
                 if (!OpenAIRequestNegotiation.Adjust(requestBody, request.MaxTokens, responseContent)) break;
 

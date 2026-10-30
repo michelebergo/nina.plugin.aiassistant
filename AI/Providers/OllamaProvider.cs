@@ -186,68 +186,9 @@ namespace NINA.Plugin.AIAssistant.AI
             var modelId = _config.ModelId ?? "llama3.2";
             var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
 
-            // Merge tools from both built-in and external MCP sources
-            var allTools = new List<MCPTool>();
-            
-            if (_mcpClient != null)
-            {
-                allTools.AddRange(_mcpClient.GetAvailableTools());
-                Logger.Info($"OllamaProvider: Added {_mcpClient.GetAvailableTools().Count} built-in NINA API tools");
-            }
-            
-            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
-            {
-                try
-                {
-                    var externalTools = await _externalMcpClient.GetToolsAsync(cancellationToken);
-                    foreach (var tool in externalTools)
-                    {
-                        var toolName = tool["name"]?.ToString();
-                        if (string.IsNullOrEmpty(toolName)) continue;
-                        
-                        // Check for name collision with NINA built-in tools
-                        if (allTools.Any(t => t.Name == toolName))
-                        {
-                            Logger.Warning($"OllamaProvider: Skipping external MCP tool '{toolName}' because a tool with this name already exists");
-                            continue;
-                        }
-
-                        // Convert JObject to MCPTool
-                        var properties = tool["inputSchema"]?["properties"]?.ToObject<JObject>();
-                        var propDict = new Dictionary<string, MCPToolParameter>();
-                        
-                        if (properties != null)
-                        {
-                            foreach (var prop in properties.Properties())
-                            {
-                                propDict[prop.Name] = new MCPToolParameter
-                                {
-                                    Type = prop.Value["type"]?.ToString() ?? "string",
-                                    Description = prop.Value["description"]?.ToString() ?? ""
-                                };
-                            }
-                        }
-                        
-                        var mcpTool = new MCPTool
-                        {
-                            Name = tool["name"]?.ToString() ?? "",
-                            Description = tool["description"]?.ToString() ?? "",
-                            InputSchema = new MCPToolInputSchema
-                            {
-                                Properties = propDict,
-                                Required = tool["inputSchema"]?["required"]?.ToObject<List<string>>() ?? new List<string>()
-                            }
-                        };
-                        allTools.Add(mcpTool);
-                    }
-                    Logger.Info($"OllamaProvider: Added {externalTools.Count} external MCP tools");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning($"OllamaProvider: Failed to get external MCP tools: {ex.Message}");
-                }
-            }
-
+            // Built-in and external tools merged by the shared source: same collision rule as
+            // before, and external parameter types normalised to one JSON Schema word.
+            var allTools = await MCPToolSources.CollectAsync(_mcpClient, _externalMcpClient, "OllamaProvider", cancellationToken);
             Logger.Info($"OllamaProvider: Sending request with {allTools.Count} total MCP tools available");
 
             // Convert MCP tools to Ollama tool format
@@ -361,45 +302,10 @@ namespace NINA.Plugin.AIAssistant.AI
                     request.ProgressCallback?.Invoke($"🔧 Calling: {toolName}{MCPToolTrace.DescribeArguments(toolInput)}");
                     Logger.Debug($"[MCP] Tool arguments: {toolArgsJson}");
 
-                    // Try built-in first, then external
-                    MCPToolResult? result = null;
-                    bool isExternal = false;
+                    // Built-in first, then external - the shared dispatcher
+                    var result = await MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, toolName, toolInput, cancellationToken);
 
-                    if (_mcpClient != null)
-                    {
-                        result = await _mcpClient.InvokeToolAsync(toolName, toolInput, cancellationToken);
-                        if (!result.Success && result.Error?.Contains("Unknown tool") == true)
-                        {
-                            result = null; // Try external
-                        }
-                    }
-
-                    if (result == null && _externalMcpClient != null && _externalMcpClient.IsConnected)
-                    {
-                        try
-                        {
-                            var externalResult = await _externalMcpClient.CallToolAsync(toolName, JObject.FromObject(toolInput), cancellationToken);
-                            result = new MCPToolResult
-                            {
-                                Success = externalResult["content"] != null,
-                                Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
-                                Error = externalResult["error"]?.ToString()
-                            };
-                            isExternal = true;
-                            Logger.Info($"[MCP] Used external MCP server for {toolName}");
-                        }
-                        catch (Exception ex)
-                        {
-                            result = new MCPToolResult { Success = false, Error = ex.Message };
-                        }
-                    }
-
-                    if (result == null)
-                    {
-                        result = new MCPToolResult { Success = false, Error = "Tool not found in any MCP source" };
-                    }
-
-                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success} ({(isExternal ? "External" : "Built-in")})");
+                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}");
                     request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
 
                     var resultContent = result.Success

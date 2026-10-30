@@ -18,8 +18,8 @@ using System.Runtime.InteropServices;
 [assembly: Guid("af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
 
 // Version information
-[assembly: AssemblyVersion("2.5.7.0")]
-[assembly: AssemblyFileVersion("2.5.7.0")]
+[assembly: AssemblyVersion("2.5.8.0")]
+[assembly: AssemblyFileVersion("2.5.8.0")]
 
 // Plugin metadata - aligned with NINA manifest standards
 [assembly: AssemblyMetadata("Identifier", "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e")]
@@ -52,7 +52,7 @@ using System.Runtime.InteropServices;
 • Ollama (Local) - Privacy-focused, works offline, no API costs, no key; needs a tool-capable model
 • Google Gemini - Free API tier, fast responses
 • Anthropic Claude - Strongest at multi-step equipment control
-• OpenAI GPT - gpt-4o, gpt-4.1 and friends; the plugin reads each model's refusals and adapts the request (token parameter, temperature, reasoning effort) instead of carrying a rulebook that goes stale
+• OpenAI GPT - gpt-4o, gpt-4.1 and the newest reasoning models alike: the plugin reads each model's refusals and adapts (token parameter, temperature, reasoning effort), and moves a model to the Responses API when that is where it calls its tools
 • Mistral AI - Free API tier, European-hosted models
 Dynamic model discovery ensures you always have latest AI capabilities.
 (GitHub Models stays in the list for anyone who had it selected, but GitHub retired the service on July 30, 2026: it refuses every request and says which providers still work. New installations open on Ollama, the one choice that needs no API key.)

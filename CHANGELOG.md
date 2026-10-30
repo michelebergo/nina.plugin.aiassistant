@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.8.0] - 2026-10-30
+
+### Added
+- **OpenAI Responses API** for the models that call tools only there. 2.5.7.0 could only tell the user that gpt-6-astra demands `reasoning_effort: none` for tools on chat completions and then rejects `none`. Now, when a model answers "To use function tools, use /v1/responses", the plugin stops negotiating parameters, switches that model to `/v1/responses` for the rest of the session and runs the same tool loop over it: system prompt as `instructions`, the conversation as `input` items, flat tool definitions, every output item - reasoning included - replayed before the `function_call_output` items, no temperature (the models that live there refuse one). Verified live with gpt-6-astra: a read-only equipment status question switched once, then called `nina_get_status` and `wiki_search` and answered. Older models stay on chat completions.
+
+### Changed
+- **One tool loop, several spellings.** `ToolLoop` is written once and takes an `IToolDialect` - how calls are read from a response, what is replayed before the results, how a result is written. `ChatCompletionsDialect` (OpenAI, Mistral) and `ResponsesApiDialect` are the two spellings; `ChatCompletionsToolLoop` remains as a name over the first. The next API is a formatter and a handful of tests, not another loop.
+- **Ollama merges built-in and external tools through `MCPToolSources`**, the same code as OpenAI and Mistral: ninety duplicated lines gone, and an external server that declares a parameter with a list of types (`["boolean","string"]`) no longer reaches the model as a malformed schema. Ollama's own loop is untouched. Verified live: status question answered through `nina_get_status` as before.
+- 126 tests.
+
 ## [2.5.7.0] - 2026-10-30
 
 ### Added

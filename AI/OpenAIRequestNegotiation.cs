@@ -52,6 +52,12 @@ namespace NINA.Plugin.AIAssistant.AI
         }
 
         /// <summary>
+        /// The model names the other endpoint: "To use function tools, use /v1/responses".
+        /// </summary>
+        public static bool SuggestsResponsesApi(string errorBody) =>
+            !string.IsNullOrEmpty(errorBody) && errorBody.Contains("/v1/responses");
+
+        /// <summary>
         /// The refusal that no repair can answer: the model demands reasoning_effort 'none'
         /// for tools on /chat/completions and then rejects 'none'. Such a model calls tools
         /// only through the Responses API. Returns a sentence for the user, or null.
