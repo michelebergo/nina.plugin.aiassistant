@@ -50,13 +50,13 @@ Check this before buying credits.
 | Provider | Cost | Chat | Equipment control (MCP) | External MCP servers | Notes |
 |---|---|---|---|---|---|
 | Ollama | free, runs on your machine | ✅ | ✅ with a tool-capable model (llama3.1+, qwen2.5, …) | ✅ | nothing leaves your PC |
-| Google Gemini | free tier | ✅ | ✅ | ✅ | |
+| Google Gemini | free tier | ✅ | ✅ (since 2.5.9.0) | ✅ | tool calling returned a 400 in every earlier version |
 | Anthropic Claude | paid | ✅ | ✅ | ✅ | |
 | OpenAI | paid | ✅ | ✅ (since 2.5.7.0) | ✅ | newest reasoning models (gpt-6-astra…) are moved to the Responses API automatically |
 | Mistral AI | free tier / paid | ✅ | ✅ (since 2.5.7.0) | ✅ | |
 | GitHub Models | — | ❌ retired by GitHub on 30 July 2026 | ❌ | ❌ | listed only if you still have it selected |
 
-"Equipment control" means the assistant receives the NINA tool definitions, calls them (status, connect, capture, slew, …) and sees the results, in as many rounds as the task needs. OpenAI and Mistral speak the same `/chat/completions` tool-calling dialect, so they share one loop; the newest OpenAI models, which call tools only through the Responses API, are moved there automatically the first time they say so. Anthropic, Gemini and Ollama each have their own loop. OpenAI accepts at most 128 tools per request: the least conversational ones (rescans, device listings, one-by-one disconnects, …) are left out first, and the NINA log lists what was dropped.
+"Equipment control" means the assistant receives the NINA tool definitions, calls them (status, connect, capture, slew, …) and sees the results, in as many rounds as the task needs. OpenAI and Mistral speak the same `/chat/completions` tool-calling dialect, so they share one loop; the newest OpenAI models, which call tools only through the Responses API, are moved there automatically the first time they say so. Anthropic, Gemini and Ollama run the same loop with a dialect of their own (since 2.5.9.0; Gemini's tool calling had never worked before it). OpenAI accepts at most 128 tools per request: the least conversational ones (rescans, device listings, one-by-one disconnects, …) are left out first, and the NINA log lists what was dropped.
 
 If you want an agent with its own permissions, workspace and session memory that works your equipment with any provider, see [OpenCode for N.I.N.A.](https://github.com/michelebergo/nina.plugin.opencode): it drives the opencode agent with NINA's tools via `nina_mcp_server`, and is the plugin meant for the more advanced, agentic use.
 
@@ -96,6 +96,21 @@ dotnet build -c Release
 ```
 
 The post-build event copies the plugin to your local NINA plugins folder.
+
+### Tests
+```bash
+dotnet test NINA.Plugin.AIAssistant.Test          # unit tests, offline
+dotnet test NINA.Plugin.AIAssistant.Test --filter Category=Live
+```
+
+The live tests send one real request per provider: the tools are declared, the model calls a
+bench tool, the result goes back in the provider's dialect and the model answers from it. They
+are the check that each API still accepts what the plugin sends. They need the keys in the
+environment (`AIASSISTANT_OPENAI_KEY`, `AIASSISTANT_ANTHROPIC_KEY`, `AIASSISTANT_GOOGLE_KEY`,
+`AIASSISTANT_MISTRAL_KEY`), NINA open with the Advanced API on `localhost:1888`, and Ollama
+reachable for its test. A test whose prerequisites are missing is skipped, not failed. Optional
+overrides: `AIASSISTANT_<PROVIDER>_MODEL`, `AIASSISTANT_OPENAI_RESPONSES_MODEL`,
+`AIASSISTANT_OLLAMA_ENDPOINT`, `AIASSISTANT_NINA_HOST` / `AIASSISTANT_NINA_PORT`.
 
 ## Project Structure
 ```

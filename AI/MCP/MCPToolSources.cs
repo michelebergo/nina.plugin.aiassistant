@@ -69,7 +69,10 @@ namespace NINA.Plugin.AIAssistant.AI.MCP
                             {
                                 Properties = propDict,
                                 Required = tool["inputSchema"]?["required"]?.ToObject<List<string>>() ?? new List<string>()
-                            }
+                            },
+                            // The full schema as the server wrote it, for providers that accept
+                            // JSON Schema whole (Claude) or need arrays' items (Gemini).
+                            RawInputSchema = (tool["inputSchema"] as JObject)?.DeepClone() as JObject
                         });
                     }
                     Logger.Info($"{providerName}: Added {externalTools.Count} external MCP tools");

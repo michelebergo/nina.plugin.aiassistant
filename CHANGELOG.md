@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.9.0] - 2026-10-31
+
+### Fixed
+- **Gemini tool calling** - it had never worked. The function results went back under a `function` role Gemini does not know ("Role 'function' is not supported"), so every request that called a tool ended in a 400 after the tool had run; and since 2.5.8.0 the external servers' full schema reached Gemini with the type list `["boolean","string"]` (sequential-thinking) that it refuses. Results now travel as a `user` content of `functionResponse` parts, and every schema type collapses to one JSON Schema word (`GeminiSchema`, built on the same `NormalizeSchemaType` as OpenAI). Verified live with gemini-3.5-flash-lite: 193 tools declared, the bench tool called, the answer taken from its result.
+
+### Changed
+- **One tool loop for all five providers.** Anthropic, Gemini and Ollama now run the shared `ToolLoop` with a dialect of their own (`AnthropicDialect`: tool_use blocks only when `stop_reason` says so, results bundled in one user message; `GeminiDialect`: functionCall parts without ids, results matched by name; `OllamaDialect`: the OpenAI shape without ids). The three providers lose 617 lines and keep only what is theirs: Claude's 90 s per-tool timeout and model fallback, Gemini's empty-answer diagnostics, Ollama's `think: false`. Claude now receives the external servers' full JSON Schema (arrays with items, nested objects) instead of the flat property map.
+
+### Added
+- **Live contract tests** (`dotnet test --filter Category=Live`): one real round trip per provider - tools declared, a bench tool called, its result handed back in the provider's dialect, the answer taken from it - with a bench schema that has the shapes real servers write (type list, array without items, nested object) among the 159 built-in tools. Skipped unless the keys are in the environment and NINA is open with the Advanced API. Both Gemini defects passed every unit test and failed here; all five providers pass now (Mistral untested, no key). 142 unit tests.
+
 ## [2.5.8.0] - 2026-10-30
 
 ### Added

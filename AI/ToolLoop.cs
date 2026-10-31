@@ -12,13 +12,15 @@ namespace NINA.Plugin.AIAssistant.AI
 {
     /// <summary>
     /// How one API spells tool calling: where the calls are in a response, what to replay
-    /// before the results, and how a result is written. The loop itself is the same for all.
+    /// before the results, and how the results of one round are written - some APIs want one
+    /// item per result, Anthropic and Gemini want them bundled in a single message. The loop
+    /// itself is the same for all.
     /// </summary>
     public interface IToolDialect
     {
         List<ChatCompletionsToolCall> ParseCalls(JObject response);
         IEnumerable<object> Echo(JObject response);
-        object Result(ChatCompletionsToolCall call, string content);
+        IEnumerable<object> Results(IReadOnlyList<(ChatCompletionsToolCall Call, string Content)> results);
     }
 
     /// <summary>
@@ -115,15 +117,15 @@ namespace NINA.Plugin.AIAssistant.AI
                         ? result.Content ?? "Tool executed successfully"
                         : $"Error: {result.Error}";
 
-                    return (call, result.Success, item: _dialect.Result(call, content));
+                    return (call, result.Success, content);
                 }).ToList();
 
                 var completed = await Task.WhenAll(executions);
-                foreach (var (call, success, item) in completed)
+                foreach (var (call, success, _) in completed)
                 {
                     allToolResults.Add($"{call.Name}: {(success ? "Success" : "Failed")}");
-                    items.Add(item);
                 }
+                items.AddRange(_dialect.Results(completed.Select(c => (c.call, c.content)).ToList()));
             }
 
             return new ToolLoopOutcome
@@ -138,7 +140,7 @@ namespace NINA.Plugin.AIAssistant.AI
 
     /// <summary>
     /// The /chat/completions spelling (OpenAI, Mistral): calls under choices[0].message,
-    /// the assistant message replayed before the results, results as role "tool" messages.
+    /// the assistant message replayed before the results, one role "tool" message per result.
     /// </summary>
     public sealed class ChatCompletionsDialect : IToolDialect
     {
@@ -147,6 +149,7 @@ namespace NINA.Plugin.AIAssistant.AI
 
         public List<ChatCompletionsToolCall> ParseCalls(JObject response) => ChatCompletionsTools.ParseToolCalls(response);
         public IEnumerable<object> Echo(JObject response) => new[] { ChatCompletionsTools.AssistantEcho(ChatCompletionsTools.Message(response)!) };
-        public object Result(ChatCompletionsToolCall call, string content) => ChatCompletionsTools.ToolResult(call.Id, call.Name, content, _includeToolNameInResult);
+        public IEnumerable<object> Results(IReadOnlyList<(ChatCompletionsToolCall Call, string Content)> results) =>
+            results.Select(r => ChatCompletionsTools.ToolResult(r.Call.Id, r.Call.Name, r.Content, _includeToolNameInResult));
     }
 }

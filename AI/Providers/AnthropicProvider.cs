@@ -182,7 +182,7 @@ namespace NINA.Plugin.AIAssistant.AI
                     if (fallbackResponse.IsSuccessStatusCode)
                     {
                         var result = ParseResponse(fallbackResponseContent, fallbackResponse.Headers);
-                        result.Content = $"⚠️ *Model '{model}' was not found. Used '{DefaultModel}' instead. Please update your model in plugin settings.*\n\n{result.Content}";
+                        result.Content = $"âš ï¸ *Model '{model}' was not found. Used '{DefaultModel}' instead. Please update your model in plugin settings.*\n\n{result.Content}";
                         return result;
                     }
                     else
@@ -201,60 +201,8 @@ namespace NINA.Plugin.AIAssistant.AI
 
         private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
         {
-            var tools = _mcpClient!.GetAvailableTools();
-
-            var toolDefinitions = new List<object>();
-            foreach (var t in tools)
-            {
-                toolDefinitions.Add(new
-                {
-                    name = t.Name,
-                    description = t.Description,
-                    input_schema = new
-                    {
-                        type = t.InputSchema.Type,
-                        properties = t.InputSchema.Properties.ToDictionary(
-                            p => p.Key,
-                            p => new { type = p.Value.Type, description = p.Value.Description }
-                        ),
-                        required = t.InputSchema.Required
-                    }
-                });
-            }
-
-            // Merge external MCP tools (Claude accepts standard JSON Schema for input_schema).
-            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
-            {
-                try
-                {
-                    var externalTools = await _externalMcpClient.GetToolsAsync(cancellationToken);
-                    int added = 0;
-                    foreach (var et in externalTools)
-                    {
-                        var name = et["name"]?.ToString();
-                        if (string.IsNullOrEmpty(name)) continue;
-                        if (tools.Any(bt => bt.Name == name))
-                        {
-                            Logger.Warning($"AnthropicProvider: Skipping external tool '{name}' (collides with a built-in tool)");
-                            continue;
-                        }
-                        var schema = et["inputSchema"] as JObject ?? new JObject { ["type"] = "object", ["properties"] = new JObject() };
-                        toolDefinitions.Add(new
-                        {
-                            name,
-                            description = et["description"]?.ToString() ?? "",
-                            input_schema = schema
-                        });
-                        added++;
-                    }
-                    Logger.Info($"AnthropicProvider: Added {added} external MCP tools");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning($"AnthropicProvider: Failed to get external MCP tools: {ex.Message}");
-                }
-            }
-
+            var allTools = await MCPToolSources.CollectAsync(_mcpClient, _externalMcpClient, "AnthropicProvider", cancellationToken);
+            var toolDefinitions = AnthropicDialect.BuildTools(allTools);
             Logger.Info($"AnthropicProvider: Sending request with {toolDefinitions.Count} MCP tools available");
 
             var messages = new List<object>();
@@ -267,204 +215,90 @@ namespace NINA.Plugin.AIAssistant.AI
 
             var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
             Logger.Debug($"AnthropicProvider: Using system prompt: {systemPrompt.Substring(0, Math.Min(100, systemPrompt.Length))}...");
-            
-            var allToolResults = new List<string>();
-            int iterations = 0;
+
             var model = _config!.ModelId ?? DefaultModel;
+            var firstRequest = true;
+            System.Net.Http.Headers.HttpResponseHeaders? lastHeaders = null;
+            string? lastErrorBody = null;
 
-            while (iterations < MaxToolIterations)
-            {
-                iterations++;
-                Logger.Info($"AnthropicProvider: Tool iteration {iterations}");
-                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
-                
-                var requestBody = new
+            var loop = new ToolLoop(
+                new AnthropicDialect(),
+                post: async (current, ct) =>
                 {
-                    model,
-                    max_tokens = request.MaxTokens,
-                    system = systemPrompt,
-                    tools = toolDefinitions,
-                    messages = messages
-                };
+                    var (response, body) = await PostMessagesAsync(model, systemPrompt, toolDefinitions, current, request.MaxTokens, ct);
 
-                var json = JsonConvert.SerializeObject(requestBody);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient!.PostAsync($"{BaseUrl}/messages", content, cancellationToken);
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.Error($"Anthropic API error: {responseContent}");
-                    var parsedError = ParseApiError(responseContent);
-                    
-                    // If model not found on first iteration, retry with default model
-                    if (parsedError.errorType == "not_found_error" && model != DefaultModel && iterations == 1)
+                    // A model id that no longer exists: fall back to the default once, on the
+                    // first request, as the plain chat path does.
+                    if (!response.IsSuccessStatusCode && firstRequest && model != DefaultModel
+                        && ParseApiError(body).errorType == "not_found_error")
                     {
                         Logger.Warning($"Model '{model}' not found, falling back to '{DefaultModel}' for tool-calling flow");
                         model = DefaultModel;
-                        // Rebuild request with default model
-                        var retryBody = new
-                        {
-                            model = DefaultModel,
-                            max_tokens = request.MaxTokens,
-                            system = systemPrompt,
-                            tools = toolDefinitions,
-                            messages = messages
-                        };
-                        json = JsonConvert.SerializeObject(retryBody);
-                        content = new StringContent(json, Encoding.UTF8, "application/json");
-                        response = await _httpClient.PostAsync($"{BaseUrl}/messages", content, cancellationToken);
-                        responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            var errorResp = new AIResponse { Success = false, Error = FormatApiError(responseContent) };
-                            CaptureRateLimits(response.Headers, errorResp);
-                            return errorResp;
-                        }
+                        (response, body) = await PostMessagesAsync(model, systemPrompt, toolDefinitions, current, request.MaxTokens, ct);
                     }
-                    else
-                    {
-                        var errorResp = new AIResponse { Success = false, Error = FormatApiError(responseContent) };
-                        CaptureRateLimits(response.Headers, errorResp);
-                        return errorResp;
-                    }
-                }
+                    firstRequest = false;
 
-                var aiResponse = ParseResponse(responseContent, response.Headers);
-                var jsonResponse = JObject.Parse(responseContent);
-                var stopReason = jsonResponse["stop_reason"]?.ToString();
-                var contentBlocks = jsonResponse["content"] as JArray;
-
-                // Process content blocks
-                var assistantContent = new List<object>();
-                var toolUseBlocks = new List<JObject>();
-                string? textResponse = null;
-
-                if (contentBlocks != null)
+                    lastHeaders = response.Headers;
+                    if (!response.IsSuccessStatusCode) lastErrorBody = body;
+                    return (response.StatusCode, body);
+                },
+                invoke: async (name, args, ct) =>
                 {
-                    foreach (var block in contentBlocks)
-                    {
-                        var blockType = block["type"]?.ToString();
-                        
-                        if (blockType == "text")
-                        {
-                            textResponse = block["text"]?.ToString();
-                            assistantContent.Add(new { type = "text", text = textResponse });
-                        }
-                        else if (blockType == "tool_use")
-                        {
-                            toolUseBlocks.Add((JObject)block);
-                            assistantContent.Add(block.ToObject<object>());
-                        }
-                    }
-                }
-
-                // If no tool use, return the response
-                if (stopReason != "tool_use" || toolUseBlocks.Count == 0)
-                {
-                    var finalResponse = ParseResponse(responseContent, response.Headers);
-                    if (allToolResults.Count > 0)
-                    {
-                        finalResponse.Metadata ??= new Dictionary<string, object>();
-                        finalResponse.Metadata["tool_results"] = allToolResults;
-                        finalResponse.Metadata["mcp_enabled"] = true;
-                    }
-                    return finalResponse;
-                }
-
-                // Add assistant message with tool use
-                messages.Add(new { role = "assistant", content = assistantContent });
-
-                // Execute tools and collect results concurrently
-                var toolTasks = toolUseBlocks.Select(async toolUse =>
-                {
-                    var toolId = toolUse["id"]?.ToString() ?? "";
-                    var toolName = toolUse["name"]?.ToString() ?? "";
-                    var toolInput = toolUse["input"]?.ToObject<Dictionary<string, object>>();
-
-                    Logger.Info($"[MCP] Executing tool: {toolName}");
-                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName}{MCPToolTrace.DescribeArguments(toolInput)}");
-                    Logger.Debug($"[MCP] Tool ID: {toolId}");
-                    Logger.Debug($"[MCP] Tool arguments: {(toolInput != null ? JsonConvert.SerializeObject(toolInput) : "null")}");
-                    
-                    MCPToolResult result;
-                    bool isExternal = false;
+                    // A tool that hangs must not hang the conversation: 90 s per call.
+                    using var toolCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    toolCts.CancelAfter(TimeSpan.FromSeconds(90));
                     try
                     {
-                        using var toolCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                        toolCts.CancelAfter(TimeSpan.FromSeconds(90));
-
-                        result = await _mcpClient.InvokeToolAsync(toolName, toolInput, toolCts.Token);
-
-                        // If the tool isn't a built-in NINA tool, route it to the external MCP source.
-                        if (!result.Success && (result.Error?.Contains("Unknown tool") ?? false))
-                        {
-                            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
-                            {
-                                request.ProgressCallback?.Invoke($"🔧 Calling external: {toolName} (iteration {iterations})");
-                                var externalResult = await _externalMcpClient.CallToolAsync(
-                                    toolName,
-                                    JObject.FromObject(toolInput ?? new Dictionary<string, object>()),
-                                    toolCts.Token);
-                                result = new MCPToolResult
-                                {
-                                    Success = externalResult["content"] != null && externalResult["error"] == null,
-                                    Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
-                                    Error = externalResult["error"]?.ToString()
-                                };
-                                isExternal = true;
-                            }
-                        }
+                        return await MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, name, args, toolCts.Token);
                     }
-                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
-                        result = new MCPToolResult { Success = false, Error = $"Tool '{toolName}' timed out after 90 seconds" };
+                        return new MCPToolResult { Success = false, Error = $"Tool '{name}' timed out after 90 seconds" };
                     }
-                    catch (Exception ex)
-                    {
-                        result = new MCPToolResult { Success = false, Error = ex.Message };
-                    }
-                    
-                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}{(isExternal ? " (External)" : " (Built-in)")}");
-                    request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
+                },
+                progress: request.ProgressCallback,
+                maxIterations: MaxToolIterations);
 
-                    var resultContent = result.Success
-                        ? result.Content ?? "Tool executed successfully"
-                        : $"Error: {result.Error}";
+            var outcome = await loop.RunAsync(messages, cancellationToken);
 
-                    return new
-                    {
-                        ToolName = toolName,
-                        Success = result.Success,
-                        ResultObj = new
-                        {
-                            type = "tool_result",
-                            tool_use_id = toolId,
-                            content = resultContent
-                        }
-                    };
-                }).ToList();
-
-                request.ProgressCallback?.Invoke($"⏳ Waiting for {toolTasks.Count} tool result(s)...");
-                var completedTasks = await Task.WhenAll(toolTasks);
-                var toolResults = new List<object>();
-
-                foreach (var t in completedTasks)
+            if (!outcome.Succeeded)
+            {
+                var errorResp = new AIResponse
                 {
-                    allToolResults.Add($"{t.ToolName}: {(t.Success ? "Success" : "Failed")}");
-                    toolResults.Add(t.ResultObj);
-                }
-
-                // Add tool results as user message
-                messages.Add(new { role = "user", content = toolResults });
+                    Success = false,
+                    Error = lastErrorBody != null ? FormatApiError(lastErrorBody) : outcome.Error
+                };
+                if (lastHeaders != null) CaptureRateLimits(lastHeaders, errorResp);
+                return errorResp;
             }
 
-            return new AIResponse
+            var finalResponse = ParseResponse(outcome.FinalResponse!.ToString(), lastHeaders);
+            if (outcome.ToolResults.Count > 0)
             {
-                Success = false,
-                Error = "Maximum tool iterations reached"
+                finalResponse.Metadata ??= new Dictionary<string, object>();
+                finalResponse.Metadata["tool_results"] = outcome.ToolResults;
+                finalResponse.Metadata["mcp_enabled"] = true;
+            }
+            return finalResponse;
+        }
+
+        private async Task<(HttpResponseMessage Response, string Body)> PostMessagesAsync(
+            string model, string systemPrompt, List<object> tools, IReadOnlyList<object> messages, int maxTokens, CancellationToken cancellationToken)
+        {
+            var requestBody = new
+            {
+                model,
+                max_tokens = maxTokens,
+                system = systemPrompt,
+                tools,
+                messages
             };
+            var json = JsonConvert.SerializeObject(requestBody);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient!.PostAsync($"{BaseUrl}/messages", content, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode) Logger.Error($"Anthropic API error: {body}");
+            return (response, body);
         }
 
         private AIResponse ParseResponse(string responseContent, System.Net.Http.Headers.HttpResponseHeaders? headers = null)

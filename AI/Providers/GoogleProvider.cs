@@ -178,294 +178,91 @@ namespace NINA.Plugin.AIAssistant.AI
 
         private async Task<AIResponse> SendRequestWithToolsAsync(AIRequest request, CancellationToken cancellationToken)
         {
-            // Merge tools from both built-in and external MCP sources
-            var allTools = new List<MCPTool>();
-            
-            if (_mcpClient != null)
-            {
-                allTools.AddRange(_mcpClient.GetAvailableTools());
-                Logger.Info($"GoogleProvider: Added {_mcpClient.GetAvailableTools().Count} built-in NINA API tools");
-            }
-            
-            if (_externalMcpClient != null && _externalMcpClient.IsConnected)
-            {
-                try
-                {
-                    var externalTools = await _externalMcpClient.GetToolsAsync(cancellationToken);
-                    foreach (var tool in externalTools)
-                    {
-                        var toolName = tool["name"]?.ToString();
-                        if (string.IsNullOrEmpty(toolName)) continue;
-                        
-                        // Check for name collision with NINA built-in tools
-                        if (allTools.Any(t => t.Name == toolName))
-                        {
-                            Logger.Warning($"GoogleProvider: Skipping external MCP tool '{toolName}' because a tool with this name already exists");
-                            continue;
-                        }
-
-                        // Convert JObject to MCPTool
-                        var properties = tool["inputSchema"]?["properties"]?.ToObject<JObject>();
-                        var propDict = new Dictionary<string, MCPToolParameter>();
-                        
-                        if (properties != null)
-                        {
-                            foreach (var prop in properties.Properties())
-                            {
-                                propDict[prop.Name] = new MCPToolParameter
-                                {
-                                    Type = prop.Value["type"]?.ToString() ?? "string",
-                                    Description = prop.Value["description"]?.ToString() ?? ""
-                                };
-                            }
-                        }
-                        
-                        var mcpTool = new MCPTool
-                        {
-                            Name = tool["name"]?.ToString() ?? "",
-                            Description = tool["description"]?.ToString() ?? "",
-                            InputSchema = new MCPToolInputSchema
-                            {
-                                Properties = propDict,
-                                Required = tool["inputSchema"]?["required"]?.ToObject<List<string>>() ?? new List<string>()
-                            },
-                            // Keep the full original schema so Gemini gets valid array 'items', nested objects, etc.
-                            RawInputSchema = (tool["inputSchema"] as JObject)?.DeepClone() as JObject
-                        };
-                        allTools.Add(mcpTool);
-                    }
-                    Logger.Info($"GoogleProvider: Added {externalTools.Count} external MCP tools");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning($"GoogleProvider: Failed to get external MCP tools: {ex.Message}");
-                }
-            }
-            
+            var allTools = await MCPToolSources.CollectAsync(_mcpClient, _externalMcpClient, "GoogleProvider", cancellationToken);
             Logger.Info($"GoogleProvider: Sending request with {allTools.Count} total MCP functions available");
-            
+
             // Convert MCP tools to Gemini function declarations
             var functionDeclarations = allTools.Select(t => new
             {
                 name = t.Name,
                 description = t.Description,
-                parameters = BuildGeminiParameters(t)
+                parameters = GeminiSchema.Parameters(t)
             }).ToList();
 
             var modelId = _config!.ModelId ?? "gemini-flash-latest";
             var systemInstruction = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
             Logger.Debug($"GoogleProvider: Using system prompt: {systemInstruction.Substring(0, Math.Min(100, systemInstruction.Length))}...");
-            
-            var allToolResults = new List<string>();
+
             var contents = new List<object>();
             if (request.History != null)
             {
                 foreach (var turn in request.History)
                     contents.Add(new { role = turn.Role == "assistant" ? "model" : "user", parts = new[] { new { text = turn.Content } } });
             }
-            contents.Add(new
-            {
-                role = "user",
-                parts = new[] { new { text = request.Prompt } }
-            });
+            contents.Add(new { role = "user", parts = new[] { new { text = request.Prompt } } });
 
-            int iterations = 0;
+            System.Net.Http.Headers.HttpResponseHeaders? lastHeaders = null;
 
-            while (iterations < MaxToolIterations)
-            {
-                iterations++;
-                Logger.Info($"GoogleProvider: Function calling iteration {iterations}");
-                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
-                
-                var requestBody = new
+            var loop = new ToolLoop(
+                new GeminiDialect(),
+                post: async (current, ct) =>
                 {
-                    system_instruction = new
+                    var requestBody = new
                     {
-                        parts = new[] { new { text = systemInstruction } }
-                    },
-                    contents = contents,
-                    tools = new[]
-                    {
-                        new { function_declarations = functionDeclarations }
-                    },
-                    generationConfig = new
-                    {
-                        temperature = request.Temperature,
-                        maxOutputTokens = request.MaxTokens
-                    }
-                };
-
-                var json = JsonConvert.SerializeObject(requestBody);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var url = $"{BaseUrl}/{modelId}:generateContent?key={_config.ApiKey}";
-                var response = await _httpClient!.PostAsync(url, content, cancellationToken);
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.Error($"Google Gemini API error: {responseContent}");
-                    return new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
-                }
-
-                var jsonResponse = JObject.Parse(responseContent);
-                var candidates = jsonResponse["candidates"] as JArray;
-                
-                if (candidates == null || candidates.Count == 0)
-                {
-                    return new AIResponse { Success = false, Error = "No response from Gemini" };
-                }
-
-                var candidate = candidates[0];
-                var finishReason = candidate["finishReason"]?.ToString();
-                var contentBlock = candidate["content"];
-                var parts = contentBlock?["parts"] as JArray;
-
-                if (parts == null || parts.Count == 0)
-                {
-                    var promptFeedback = jsonResponse["promptFeedback"]?.ToString();
-                    var safetyRatings = candidate["safetyRatings"]?.ToString();
-                    Logger.Error($"GoogleProvider: Gemini returned no content. finishReason={finishReason}, promptFeedback={promptFeedback}, safetyRatings={safetyRatings}, response={responseContent}");
-                    var detail = finishReason ?? "Unknown";
-                    if (!string.IsNullOrEmpty(promptFeedback))
-                        detail += $" | Prompt feedback: {promptFeedback}";
-                    if (!string.IsNullOrEmpty(safetyRatings))
-                        detail += $" | Safety: {safetyRatings}";
-                    return new AIResponse { Success = false, Error = $"Empty response from Gemini (finishReason: {detail})" };
-                }
-
-                // Add model response to conversation
-                contents.Add(new
-                {
-                    role = "model",
-                    parts = parts.ToObject<object>()
-                });
-
-                // Check for function calls
-                var functionCalls = new List<JObject>();
-                string? textResponse = null;
-
-                foreach (var part in parts)
-                {
-                    if (part["text"] != null)
-                    {
-                        textResponse = part["text"]?.ToString();
-                    }
-                    else if (part["functionCall"] != null)
-                    {
-                        functionCalls.Add((JObject)part["functionCall"]!);
-                    }
-                }
-
-                // If no tool use, return the response
-                if (functionCalls.Count == 0)
-                {
-                    var finalResponse = ParseResponse(responseContent, modelId, response.Headers);
-                    if (allToolResults.Count > 0)
-                    {
-                        finalResponse.Metadata ??= new Dictionary<string, object>();
-                        finalResponse.Metadata["tool_results"] = allToolResults;
-                        finalResponse.Metadata["mcp_enabled"] = true;
-                    }
-                    return finalResponse;
-                }
-
-                // Execute functions and collect results concurrently
-                var functionTasks = functionCalls.Select(async functionCall =>
-                {
-                    var functionName = functionCall["name"]?.ToString() ?? "";
-                    var functionArgs = functionCall["args"]?.ToObject<Dictionary<string, object>>();
-
-                    Logger.Info($"[MCP] Executing function: {functionName}");
-                    request.ProgressCallback?.Invoke($"🔧 Calling: {functionName}{MCPToolTrace.DescribeArguments(functionArgs)}");
-                    Logger.Debug($"[MCP] Function arguments: {(functionArgs != null ? JsonConvert.SerializeObject(functionArgs) : "null")}");
-                    
-                    // Try built-in first, then external
-                    MCPToolResult? result = null;
-                    bool isExternal = false;
-                    
-                    if (_mcpClient != null)
-                    {
-                        result = await _mcpClient.InvokeToolAsync(functionName, functionArgs, cancellationToken);
-                        if (!result.Success && result.Error?.Contains("Unknown tool") == true)
-                        {
-                            result = null; // Try external
-                        }
-                    }
-                    
-                    if (result == null && _externalMcpClient != null && _externalMcpClient.IsConnected)
-                    {
-                        try
-                        {
-                            var externalResult = await _externalMcpClient.CallToolAsync(functionName, JObject.FromObject(functionArgs ?? new Dictionary<string, object>()), cancellationToken);
-                            result = new MCPToolResult
-                            {
-                                Success = externalResult["content"] != null,
-                                Content = externalResult["content"]?[0]?["text"]?.ToString() ?? externalResult.ToString(),
-                                Error = externalResult["error"]?.ToString()
-                            };
-                            isExternal = true;
-                            Logger.Info($"[MCP] Used external MCP server for {functionName}");
-                        }
-                        catch (Exception ex)
-                        {
-                            result = new MCPToolResult { Success = false, Error = ex.Message };
-                        }
-                    }
-                    
-                    if (result == null)
-                    {
-                        result = new MCPToolResult { Success = false, Error = "Tool not found in any MCP source" };
-                    }
-                    
-                    Logger.Info($"[MCP] Function {functionName} completed - Success: {result.Success} ({(isExternal ? "External" : "Built-in")})");
-                    request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
-
-                    var resultContent = result.Success
-                        ? result.Content ?? "Function executed successfully"
-                        : $"Error: {result.Error}";
-                    
-                    return new
-                    {
-                        FunctionName = functionName,
-                        Success = result.Success,
-                        ResultObj = new
-                        {
-                            functionResponse = new
-                            {
-                                name = functionName,
-                                response = new
-                                {
-                                    name = functionName,
-                                    content = resultContent
-                                }
-                            }
-                        }
+                        system_instruction = new { parts = new[] { new { text = systemInstruction } } },
+                        contents = current,
+                        tools = new[] { new { function_declarations = functionDeclarations } },
+                        generationConfig = new { temperature = request.Temperature, maxOutputTokens = request.MaxTokens }
                     };
-                }).ToList();
+                    var json = JsonConvert.SerializeObject(requestBody);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var url = $"{BaseUrl}/{modelId}:generateContent?key={_config.ApiKey}";
+                    var response = await _httpClient!.PostAsync(url, content, ct);
+                    lastHeaders = response.Headers;
+                    var body = await response.Content.ReadAsStringAsync(ct);
+                    if (!response.IsSuccessStatusCode) Logger.Error($"Google Gemini API error: {body}");
+                    return (response.StatusCode, body);
+                },
+                invoke: (name, args, ct) => MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, name, args, ct),
+                progress: request.ProgressCallback,
+                maxIterations: MaxToolIterations);
 
-                var completedTasks = await Task.WhenAll(functionTasks);
-                var functionResponses = new List<object>();
+            var outcome = await loop.RunAsync(contents, cancellationToken);
 
-                foreach (var t in completedTasks)
-                {
-                    allToolResults.Add($"{t.FunctionName}: {(t.Success ? "Success" : "Failed")}");
-                    functionResponses.Add(t.ResultObj);
-                }
-
-                // Add function results to conversation
-                contents.Add(new
-                {
-                    role = "function",
-                    parts = functionResponses
-                });
+            if (!outcome.Succeeded)
+            {
+                return new AIResponse { Success = false, Error = outcome.Error };
             }
 
-            return new AIResponse
+            // A 200 with nothing in it: say why (safety block, prompt feedback) rather than
+            // hand back an empty answer.
+            var final = outcome.FinalResponse!;
+            var candidate = (final["candidates"] as JArray)?.FirstOrDefault();
+            if (candidate == null)
             {
-                Success = false,
-                Error = "Maximum function calling iterations reached"
-            };
+                return new AIResponse { Success = false, Error = "No response from Gemini" };
+            }
+            var parts = candidate["content"]?["parts"] as JArray;
+            if (parts == null || parts.Count == 0)
+            {
+                var finishReason = candidate["finishReason"]?.ToString();
+                var promptFeedback = final["promptFeedback"]?.ToString();
+                var safetyRatings = candidate["safetyRatings"]?.ToString();
+                Logger.Error($"GoogleProvider: Gemini returned no content. finishReason={finishReason}, promptFeedback={promptFeedback}, safetyRatings={safetyRatings}, response={final}");
+                var detail = finishReason ?? "Unknown";
+                if (!string.IsNullOrEmpty(promptFeedback)) detail += $" | Prompt feedback: {promptFeedback}";
+                if (!string.IsNullOrEmpty(safetyRatings)) detail += $" | Safety: {safetyRatings}";
+                return new AIResponse { Success = false, Error = $"Empty response from Gemini (finishReason: {detail})" };
+            }
+
+            var finalResponse = ParseResponse(final.ToString(), modelId, lastHeaders);
+            if (outcome.ToolResults.Count > 0)
+            {
+                finalResponse.Metadata ??= new Dictionary<string, object>();
+                finalResponse.Metadata["tool_results"] = outcome.ToolResults;
+                finalResponse.Metadata["mcp_enabled"] = true;
+            }
+            return finalResponse;
         }
 
         private AIResponse ParseResponse(string responseContent, string modelId, System.Net.Http.Headers.HttpResponseHeaders? headers = null)
@@ -547,95 +344,6 @@ namespace NINA.Plugin.AIAssistant.AI
             {
                 Logger.Debug($"Failed to capture Google rate limit headers: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// Build the Gemini "parameters" schema for a tool. Prefers the full original JSON schema
-        /// (external tools) so arrays declare 'items' and nested objects keep 'properties'; falls back
-        /// to the simple property map for built-in tools.
-        /// </summary>
-        private object BuildGeminiParameters(MCPTool tool)
-        {
-            if (tool.RawInputSchema != null)
-            {
-                var sanitized = SanitizeGeminiSchema(tool.RawInputSchema);
-                // Gemini requires the top-level parameters to be an object schema.
-                if (!sanitized.ContainsKey("type"))
-                    sanitized["type"] = "object";
-                return sanitized;
-            }
-
-            var properties = new Dictionary<string, object>();
-            foreach (var p in tool.InputSchema.Properties)
-                properties[p.Key] = BuildGeminiProperty(p.Value);
-
-            return new Dictionary<string, object>
-            {
-                ["type"] = "object",
-                ["properties"] = properties,
-                ["required"] = tool.InputSchema.Required
-            };
-        }
-
-        private Dictionary<string, object> BuildGeminiProperty(MCPToolParameter param)
-        {
-            var type = string.IsNullOrEmpty(param.Type) ? "string" : param.Type;
-            var d = new Dictionary<string, object> { ["type"] = type };
-            if (!string.IsNullOrEmpty(param.Description))
-                d["description"] = param.Description!;
-            if (param.Enum != null && param.Enum.Count > 0)
-                d["enum"] = param.Enum;
-            // Gemini requires array parameters to declare their item type.
-            if (type.Equals("array", StringComparison.OrdinalIgnoreCase))
-                d["items"] = new Dictionary<string, object> { ["type"] = "string" };
-            return d;
-        }
-
-        /// <summary>
-        /// Recursively convert a JSON Schema into a Gemini-compatible schema, keeping only supported
-        /// keywords and guaranteeing arrays have 'items' and objects have 'properties'.
-        /// </summary>
-        private Dictionary<string, object> SanitizeGeminiSchema(JToken? node)
-        {
-            var result = new Dictionary<string, object>();
-            if (node is not JObject obj)
-            {
-                result["type"] = "string";
-                return result;
-            }
-
-            var type = obj["type"]?.ToString();
-            if (string.IsNullOrEmpty(type))
-                type = obj["properties"] != null ? "object" : "string";
-            result["type"] = type;
-
-            var desc = obj["description"]?.ToString();
-            if (!string.IsNullOrEmpty(desc))
-                result["description"] = desc!;
-
-            if (obj["enum"] is JArray enumVals)
-                result["enum"] = enumVals.Select(v => v.ToString()).ToList();
-
-            if (type == "object")
-            {
-                var outProps = new Dictionary<string, object>();
-                if (obj["properties"] is JObject props)
-                {
-                    foreach (var p in props.Properties())
-                        outProps[p.Name] = SanitizeGeminiSchema(p.Value);
-                }
-                result["properties"] = outProps;
-                if (obj["required"] is JArray req)
-                    result["required"] = req.Select(v => v.ToString()).ToList();
-            }
-            else if (type == "array")
-            {
-                result["items"] = obj["items"] != null
-                    ? SanitizeGeminiSchema(obj["items"])
-                    : new Dictionary<string, object> { ["type"] = "string" };
-            }
-
-            return result;
         }
 
         private string GetMCPSystemPrompt()

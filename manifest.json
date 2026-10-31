@@ -1,7 +1,7 @@
 {
   "Identifier": "af5e2826-e3b4-4b9c-9a1a-1e8d7c8b6a9e",
   "Name": "AI Assistant",
-  "Version": "2.5.8.0",
+  "Version": "2.5.9.0",
   "MinimumApplicationVersion": "3.0.0.0",
   "Author": "Michele Bergo",
   "Homepage": "https://github.com/michelebergo/nina.plugin.aiassistant",
@@ -29,6 +29,15 @@
     }
   },
   "ChangeLog": [
+    {
+      "Version": "2.5.9.0",
+      "Date": "2026-10-31",
+      "Changes": [
+        "Gemini tool calling fixed - it had never worked: function results went back under a 'function' role Gemini does not know, so every request that called a tool ended in a 400 after the tool had run; and the external servers' schema could carry a list of types that Gemini refuses. Results now go back as a user content of functionResponse parts and every type is one JSON Schema word. Verified live with gemini-3.5-flash-lite.",
+        "One tool loop for all five providers: Anthropic, Gemini and Ollama now run the shared loop with a dialect of their own, keeping only what is theirs (Claude's 90 s per-tool timeout and model fallback, Gemini's empty-answer diagnostics, Ollama's think:false). Claude receives the external servers' full JSON Schema.",
+        "Live contract tests (dotnet test --filter Category=Live): one real round trip per provider with a bench tool among the 159 built-in ones, the check that each API still accepts what the plugin sends. Skipped unless the keys are in the environment and NINA is open."
+      ]
+    },
     {
       "Version": "2.5.8.0",
       "Date": "2026-10-30",

@@ -79,7 +79,7 @@ namespace NINA.Plugin.AIAssistant.Test {
         [Test]
         public void Result_IsAFunctionCallOutputItem() {
             var call = new ChatCompletionsToolCall { Id = "call_abc", Name = "nina_get_status" };
-            var item = JObject.FromObject(new ResponsesApiDialect().Result(call, "all good"));
+            var item = JObject.FromObject(new ResponsesApiDialect().Results(new[] { (call, "all good") }).Single());
 
             item["type"]!.ToString().Should().Be("function_call_output");
             item["call_id"]!.ToString().Should().Be("call_abc");

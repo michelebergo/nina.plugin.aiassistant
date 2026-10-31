@@ -77,7 +77,7 @@ namespace NINA.Plugin.AIAssistant.AI
         public IEnumerable<object> Echo(JObject response) =>
             ResponsesApiTools.OutputItems(response).Select(i => (object)i.ToObject<object>()!);
 
-        public object Result(ChatCompletionsToolCall call, string content) =>
-            new { type = "function_call_output", call_id = call.Id, output = content };
+        public IEnumerable<object> Results(IReadOnlyList<(ChatCompletionsToolCall Call, string Content)> results) =>
+            results.Select(r => (object)new { type = "function_call_output", call_id = r.Call.Id, output = r.Content });
     }
 }

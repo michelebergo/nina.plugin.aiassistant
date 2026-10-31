@@ -186,34 +186,11 @@ namespace NINA.Plugin.AIAssistant.AI
             var modelId = _config.ModelId ?? "llama3.2";
             var systemPrompt = SystemPromptComposer.Compose(request.SystemPrompt ?? GetMCPSystemPrompt(), request.ProfileContext);
 
-            // Built-in and external tools merged by the shared source: same collision rule as
-            // before, and external parameter types normalised to one JSON Schema word.
             var allTools = await MCPToolSources.CollectAsync(_mcpClient, _externalMcpClient, "OllamaProvider", cancellationToken);
             Logger.Info($"OllamaProvider: Sending request with {allTools.Count} total MCP tools available");
 
-            // Convert MCP tools to Ollama tool format
-            var ollamaTools = allTools.Select(t => new
-            {
-                type = "function",
-                function = new
-                {
-                    name = t.Name,
-                    description = t.Description,
-                    parameters = new
-                    {
-                        type = t.InputSchema.Type,
-                        properties = t.InputSchema.Properties.ToDictionary(
-                            p => p.Key,
-                            p => new
-                            {
-                                type = p.Value.Type,
-                                description = p.Value.Description
-                            }
-                        ),
-                        required = t.InputSchema.Required
-                    }
-                }
-            }).ToList();
+            // Ollama takes the OpenAI tool envelope
+            var ollamaTools = ChatCompletionsTools.BuildTools(allTools);
 
             var messages = new List<object>
             {
@@ -226,118 +203,52 @@ namespace NINA.Plugin.AIAssistant.AI
             }
             messages.Add(new { role = "user", content = request.Prompt });
 
-            var allToolResults = new List<string>();
-            int iterations = 0;
-
-            while (iterations < MaxToolIterations)
-            {
-                iterations++;
-                Logger.Info($"OllamaProvider: Tool iteration {iterations}");
-                request.ProgressCallback?.Invoke($"🔧 Iteration {iterations} — thinking...");
-
-                var requestBody = new Dictionary<string, object>
+            var loop = new ToolLoop(
+                new OllamaDialect(),
+                post: async (current, ct) =>
                 {
-                    ["model"] = modelId,
-                    ["messages"] = messages,
-                    ["tools"] = ollamaTools,
-                    ["stream"] = false,
-                    ["options"] = new
+                    var requestBody = new Dictionary<string, object>
                     {
-                        temperature = request.Temperature,
-                        num_predict = request.MaxTokens
-                    }
-                };
-                if (_config.DisableThinking)
-                {
-                    requestBody["think"] = false;
-                }
-
-                var json = JsonConvert.SerializeObject(requestBody);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient!.PostAsync($"{endpoint}/api/chat", content, cancellationToken);
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.Error($"Ollama API error: {responseContent}");
-                    return new AIResponse { Success = false, Error = $"API Error: {response.StatusCode} - {responseContent}" };
-                }
-
-                var jsonResponse = JObject.Parse(responseContent);
-                var message = jsonResponse["message"];
-                var toolCalls = message?["tool_calls"] as JArray;
-                var assistantContent = message?["content"]?.ToString();
-
-                // If no tool calls, return the final response
-                if (toolCalls == null || toolCalls.Count == 0)
-                {
-                    var finalResponse = ParseResponse(responseContent, modelId);
-                    if (allToolResults.Count > 0)
-                    {
-                        finalResponse.Metadata ??= new Dictionary<string, object>();
-                        finalResponse.Metadata["tool_results"] = allToolResults;
-                        finalResponse.Metadata["mcp_enabled"] = true;
-                    }
-                    return finalResponse;
-                }
-
-                // Add assistant message (with tool calls) to conversation
-                messages.Add(new
-                {
-                    role = "assistant",
-                    content = assistantContent ?? "",
-                    tool_calls = toolCalls.ToObject<object>()
-                });
-
-                // Execute tools and collect results
-                var toolTasks = toolCalls.Select(async toolCall =>
-                {
-                    var function = toolCall["function"];
-                    var toolName = function?["name"]?.ToString() ?? "";
-                    var toolArgsJson = function?["arguments"]?.ToString() ?? "{}";
-                    var toolInput = JsonConvert.DeserializeObject<Dictionary<string, object>>(toolArgsJson) ?? new Dictionary<string, object>();
-
-                    Logger.Info($"[MCP] Executing tool: {toolName}");
-                    request.ProgressCallback?.Invoke($"🔧 Calling: {toolName}{MCPToolTrace.DescribeArguments(toolInput)}");
-                    Logger.Debug($"[MCP] Tool arguments: {toolArgsJson}");
-
-                    // Built-in first, then external - the shared dispatcher
-                    var result = await MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, toolName, toolInput, cancellationToken);
-
-                    Logger.Info($"[MCP] Tool {toolName} completed - Success: {result.Success}");
-                    request.ProgressCallback?.Invoke(MCPToolTrace.DescribeOutcome(result.Success, result.Content, result.Error));
-
-                    var resultContent = result.Success
-                        ? result.Content ?? "Tool executed successfully"
-                        : $"Error: {result.Error}";
-
-                    return new
-                    {
-                        ToolName = toolName,
-                        Success = result.Success,
-                        ResultObj = new
+                        ["model"] = modelId,
+                        ["messages"] = current,
+                        ["tools"] = ollamaTools,
+                        ["stream"] = false,
+                        ["options"] = new
                         {
-                            role = "tool",
-                            content = resultContent
+                            temperature = request.Temperature,
+                            num_predict = request.MaxTokens
                         }
                     };
-                }).ToList();
+                    if (_config.DisableThinking)
+                    {
+                        requestBody["think"] = false;
+                    }
+                    var json = JsonConvert.SerializeObject(requestBody);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var response = await _httpClient!.PostAsync($"{endpoint}/api/chat", content, ct);
+                    var body = await response.Content.ReadAsStringAsync(ct);
+                    if (!response.IsSuccessStatusCode) Logger.Error($"Ollama API error: {body}");
+                    return (response.StatusCode, body);
+                },
+                invoke: (name, args, ct) => MCPToolSources.InvokeAsync(_mcpClient, _externalMcpClient, name, args, ct),
+                progress: request.ProgressCallback,
+                maxIterations: MaxToolIterations);
 
-                var completedTasks = await Task.WhenAll(toolTasks);
+            var outcome = await loop.RunAsync(messages, cancellationToken);
 
-                foreach (var t in completedTasks)
-                {
-                    allToolResults.Add($"{t.ToolName}: {(t.Success ? "Success" : "Failed")}");
-                    messages.Add(t.ResultObj);
-                }
+            if (!outcome.Succeeded)
+            {
+                return new AIResponse { Success = false, Error = outcome.Error };
             }
 
-            return new AIResponse
+            var finalResponse = ParseResponse(outcome.FinalResponse!.ToString(), modelId);
+            if (outcome.ToolResults.Count > 0)
             {
-                Success = false,
-                Error = "Maximum tool iterations reached"
-            };
+                finalResponse.Metadata ??= new Dictionary<string, object>();
+                finalResponse.Metadata["tool_results"] = outcome.ToolResults;
+                finalResponse.Metadata["mcp_enabled"] = true;
+            }
+            return finalResponse;
         }
 
         private AIResponse ParseResponse(string responseContent, string modelId)
