@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.10.0] - 2026-10-31
+
+### Changed
+- **Options page in tabs**: Provider · Equipment control · Your rig · Advanced (external MCP servers, autopilot) · About - the shape of the Three Point Polar Alignment options page, a `TabControl` that bubbles the mouse wheel to NINA's page with each tab scrolling on its own. Nothing moved inside the sections; each button still sits next to the result line it writes to.
+- Model lists are fetched once per page. WPF detaches the content of the tab you leave and raises `Loaded` again when you come back; before, that would have meant six model-list requests on every return to the Provider tab.
+
+### Added
+- **Options page test** (`OptionsPageTest`): the page as WPF builds it from the XAML - tabs in setup order, every Test / Validate / Add / Reset button reaching exactly its own result line through the same tree walk the code-behind uses, each panel on the tab it belongs to, the controls surviving a tab switch. A result line wrapped in a Grid or a renamed tab turns it red. 157 unit tests.
+
 ## [2.5.9.0] - 2026-10-31
 
 ### Fixed

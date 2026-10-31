@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.Linq;
@@ -24,6 +25,15 @@ namespace NINA.Plugin.AIAssistant
         {
             InitializeComponent();
         }
+
+        /// <summary>
+        /// A model ComboBox raises Loaded again every time its tab is shown (WPF detaches the
+        /// content of the tab you leave), so each list is fetched once per page; the Test
+        /// buttons and the provider change still refetch on demand.
+        /// </summary>
+        private readonly HashSet<AIProviderType> _modelListsLoaded = new HashSet<AIProviderType>();
+
+        private bool FirstLoad(AIProviderType provider) => _modelListsLoaded.Add(provider);
 
         #region Provider Selection
 
@@ -108,7 +118,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void GitHubModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.GitHub))
             {
                 await LoadModelsForProvider(AIProviderType.GitHub, plugin);
             }
@@ -116,7 +126,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void OpenAIModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.OpenAI))
             {
                 await LoadModelsForProvider(AIProviderType.OpenAI, plugin);
             }
@@ -124,7 +134,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void AnthropicModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.Anthropic))
             {
                 await LoadModelsForProvider(AIProviderType.Anthropic, plugin);
             }
@@ -132,7 +142,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void GoogleModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.Google))
             {
                 await LoadModelsForProvider(AIProviderType.Google, plugin);
             }
@@ -140,7 +150,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void OllamaModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.Ollama))
             {
                 await LoadModelsForProvider(AIProviderType.Ollama, plugin);
             }
@@ -646,7 +656,7 @@ namespace NINA.Plugin.AIAssistant
 
         private async void MistralModel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin)
+            if (sender is ComboBox comboBox && comboBox.DataContext is AIAssistantPlugin plugin && FirstLoad(AIProviderType.Mistral))
             {
                 await LoadModelsForProvider(AIProviderType.Mistral, plugin);
             }
@@ -1044,25 +1054,8 @@ namespace NINA.Plugin.AIAssistant
 
         #region Helper Methods
 
-        private TextBlock? FindTextBlock(string name, FrameworkElement startElement)
-        {
-            var parent = startElement.Parent as FrameworkElement;
-            while (parent != null)
-            {
-                if (parent is StackPanel stackPanel)
-                {
-                    foreach (var child in stackPanel.Children)
-                    {
-                        if (child is TextBlock tb && tb.Name == name)
-                        {
-                            return tb;
-                        }
-                    }
-                }
-                parent = parent.Parent as FrameworkElement;
-            }
-            return null;
-        }
+        private TextBlock? FindTextBlock(string name, FrameworkElement startElement) =>
+            OptionsTree.FindResultTextBlock(name, startElement);
 
         private void ClearTestResult(string textBlockName, object sender)
         {

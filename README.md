@@ -34,12 +34,12 @@
 
 ## Configuration
 
-The options page is laid out in the order you set things up:
+The options page has one tab per step, in the order you set things up:
 
 1. **AI provider** – pick one (see the table below first), paste the key (not needed for Ollama; Google Gemini and Mistral offer free API tiers), choose the model, press Test. For Ollama, the model's "thinking" phase is disabled by default ("Disable model thinking") so thinking-capable models (Gemma 4, Qwen 3.x, DeepSeek) answer promptly instead of reasoning at length first.
 2. **Equipment control** – enable MCP and point it at the NINA Advanced API plugin (host and port, Test connection). Works with every provider.
 3. **Your rig** – whether a short summary of your active NINA profile (site, telescope, camera, image paths) travels with each message so the assistant stops guessing your own equipment. On by default; the exact text goes to the NINA log every time it changes.
-4. **External MCP servers** and **Autopilot connection** – advanced, optional.
+4. **Advanced** – external MCP servers and the autopilot connection, both optional.
 
 Then start chatting in the dockable AI panel.
 
